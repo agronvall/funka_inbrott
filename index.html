@@ -576,8 +576,8 @@
   async function downloadPdf() {
     generateReport(); // ensure up-to-date data
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    // Use the plugin-aware version:
+    const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
 
     // Header
     doc.setFont("helvetica", "bold");
@@ -603,7 +603,6 @@
 
     // We'll build a simple autoTable for columns except the Photo column
     const photoColIndex = tableHeaders.findIndex(h => h.toLowerCase() === "photo");
-    // For the PDF table, we exclude the Photo column from the text table
     const pdfHeaders = tableHeaders.filter((_, i) => i !== photoColIndex);
     const pdfBody    = tableRows.map(row => row.filter((_, i) => i !== photoColIndex));
 
@@ -629,7 +628,6 @@
         finalY += 10;
 
         // Add the image
-        //  We limit size to e.g. 150 wide, 100 tall. Adjust as needed.
         doc.addImage(base64, "JPEG", 40, finalY, 150, 100);
         finalY += 110; // move down for next photo
       }
