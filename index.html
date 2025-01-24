@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <title>Excel → Dynamisk Protokoll (Mobile “Card” Table)</title>
+  <title>Excel → Dynamisk Protokoll with Photo</title>
 
   <!-- Viewport for mobile responsiveness -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,11 +43,6 @@
       padding: 1.5rem;
       margin-bottom: 1.5rem;
     }
-    /* Normal table styles */
-    .table thead th {
-      background-color: #495057; 
-      color: #fff;
-    }
     /* The final text report preview box */
     #reportOutput {
       white-space: pre-wrap;
@@ -61,15 +56,14 @@
       margin-top: 1rem;
     }
 
-    /**
-     * RESPONSIVE TABLE-TO-CARDS:
-     * At max-width: 575px (XS screens), 
-     *   hide the thead, make each row display as blocks,
-     *   and show column labels before each cell’s data.
-     */
+    /* Responsive table => card style on very small screens */
+    .table thead th {
+      background-color: #495057; 
+      color: #fff;
+    }
     @media (max-width: 575.98px) {
       .table thead {
-        display: none; /* Hide table headings */
+        display: none; 
       }
       .table, 
       .table tbody, 
@@ -80,7 +74,7 @@
       }
       .table tr {
         margin-bottom: 1rem;
-        border-bottom: 2px solid #dee2e6; /* optional divider */
+        border-bottom: 2px solid #dee2e6; 
       }
       .table td {
         border: none !important;
@@ -90,17 +84,13 @@
         text-align: left;
       }
       .table td::before {
-        content: attr(data-label); /* uses the custom data-label attribute */
+        content: attr(data-label);
         position: absolute;
         left: 1rem;
         width: 40%;
         font-weight: 600;
         color: #495057;
         white-space: nowrap;
-      }
-      /* Let checkboxes remain left aligned to see them easily */
-      .table td input[type="checkbox"] {
-        margin-left: 0;
       }
     }
   </style>
@@ -110,7 +100,7 @@
 <!-- 1. Dark Navbar -->
 <nav class="navbar navbar-dark bg-dark mb-4">
   <div class="container-fluid">
-    <span class="navbar-brand mb-0 h1">Dynamisk Protokoll</span>
+    <span class="navbar-brand mb-0 h1">Dynamisk Protokoll + Foto</span>
   </div>
 </nav>
 
@@ -191,15 +181,32 @@
     </div>
   </div>
 
-  <!-- Step 3: Table Section -->
+  <!-- Step 3A: Photo Section -->
   <div class="section-card">
-    <h4 class="mb-3">3. Tabell</h4>
+    <h4 class="mb-3">3. Foto (valfritt)</h4>
+    <p class="text-muted">Du kan ladda upp eller ta ett foto (ex. fel, anmärkning, etc.) för att inkludera i rapporten.</p>
+    <input 
+      type="file" 
+      id="photoInput"
+      accept="image/*"
+      capture="camera"
+      class="form-control mb-3"
+    />
+    <div id="photoPreviewWrapper" class="text-center" style="display:none;">
+      <p class="text-muted mb-1">Förhandsvisning:</p>
+      <img id="photoPreview" src="" alt="Photo preview" 
+           style="max-width: 300px; max-height: 300px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px;" />
+    </div>
+  </div>
+
+  <!-- Step 3B: Table Section -->
+  <div class="section-card">
+    <h4 class="mb-3">4. Tabell</h4>
     <p class="text-muted">
       Raderna nedan hämtas från Excel (sheet "Service" eller första arket). 
       Du kan redigera celler och lägga till nya rader.
     </p>
 
-    <!-- We’ll build the table dynamically -->
     <div id="tableContainer"></div>
 
     <!-- Action Buttons -->
@@ -218,7 +225,7 @@
 
   <!-- Step 4: Output -->
   <div class="section-card">
-    <h4 class="mb-3">4. Rapport</h4>
+    <h4 class="mb-3">5. Rapport</h4>
     <div id="reportOutput"></div>
   </div>
 
@@ -236,15 +243,16 @@
 
 <script>
   /**
-   * 1) We treat these columns as checkboxes.
-   * 2) We parse top ~20 rows for known labels ("Anläggning:", etc.)
-   * 3) We do "table => card" on small screens with special CSS + data-label in <td>.
+   * 1) We treat these columns as checkboxes ("Ritning", "Provad Sign", "Åtgärdad Sign").
+   * 2) We parse top ~20 rows for known labels ("Anläggning:", etc.).
+   * 3) We add a "Photo" option with <input type="file" capture="camera"> 
+   *    and embed the photo in the PDF if user chooses one.
    */
 
-  // 1. Columns that become checkboxes
+  // Columns that become checkboxes
   const checkboxColumns = ["Ritning", "Provad Sign", "Åtgärdad Sign"];
 
-  // 2. Map known label strings -> headerInfo property
+  // Mapping from label -> headerInfo property
   const labelMap = {
     "anläggning:":         "anlaggning",
     "anläggningsnr:":      "anlaggningsnr",
@@ -254,7 +262,7 @@
     "datum:":              "datum"
   };
 
-  // We'll store header fields + table data
+  // Store header fields + table data
   let headerInfo = {
     anlaggning:       "",
     anlaggningsnr:    "",
@@ -266,8 +274,14 @@
   let tableHeaders = [];
   let tableRows = [];
 
-  // 3. File input -> parse Excel
+  // We'll store the photo as a Base64 string
+  let photoBase64 = null;
+
+  // 1. Handle Excel file
   document.getElementById('excelFile').addEventListener('change', handleFile);
+
+  // 2. Handle photo input
+  document.getElementById('photoInput').addEventListener('change', handlePhoto);
 
   function handleFile(e) {
     const file = e.target.files[0];
@@ -278,7 +292,7 @@
       const data = evt.target.result;
       const workbook = XLSX.read(data, { type: 'binary' });
 
-      // Pick "Service" or fallback to first
+      // "Service" or fallback
       const sheetName = workbook.SheetNames.includes("Service")
                         ? "Service"
                         : workbook.SheetNames[0];
@@ -298,16 +312,15 @@
 
       extractHeaderFields(sheetData);
 
-      // Locate row with "UNR." => table header
+      // Locate row with "UNR." => table headers
       let headerRowIndex = sheetData.findIndex(row =>
         typeof row[0] === 'string' && row[0].trim().toLowerCase() === "unr."
       );
       if (headerRowIndex === -1) headerRowIndex = 0;
 
-      // That row => table headers
       tableHeaders = (sheetData[headerRowIndex] || []).map(h => (h || "").toString().trim());
 
-      // Below rows => table data
+      // Subsequent rows => data
       tableRows = [];
       for (let r = headerRowIndex + 1; r < sheetData.length; r++) {
         const rowArr = sheetData[r] || [];
@@ -334,7 +347,6 @@
   }
 
   function extractHeaderFields(sheetData) {
-    // Check first ~20 rows x 10 cols for known labels
     const maxRows = Math.min(sheetData.length, 20);
     const maxCols = 10;
     for (let r = 0; r < maxRows; r++) {
@@ -343,11 +355,9 @@
         const cellVal = (row[c] || "").toString().trim().toLowerCase();
         if (cellVal in labelMap) {
           let foundVal = "";
-          // next col
           if (row[c+1]) {
             foundVal = row[c+1].toString().trim();
           }
-          // or next row
           if (!foundVal && sheetData[r+1] && sheetData[r+1][c]) {
             foundVal = sheetData[r+1][c].toString().trim();
           }
@@ -368,14 +378,14 @@
 
   function buildTable() {
     const container = document.getElementById('tableContainer');
-    container.innerHTML = ""; // clear old table if any
+    container.innerHTML = "";
 
     if (!tableHeaders.length) {
       container.innerHTML = '<p class="text-danger">Inga kolumnrubriker hittades.</p>';
       return;
     }
 
-    // Build a Bootstrap table
+    // Build a table
     const table = document.createElement('table');
     table.className = 'table table-striped table-hover align-middle';
 
@@ -406,10 +416,9 @@
   }
 
   function createCell(header, val) {
-    // Create <td> with a data-label attribute for responsive card layout
     const td = document.createElement('td');
-    td.setAttribute('data-label', header); 
-    // If it's a checkbox column
+    td.setAttribute('data-label', header); // for mobile card layout
+
     if (checkboxColumns.some(col => col.toLowerCase() === header.toLowerCase())) {
       const input = document.createElement('input');
       input.type = 'checkbox';
@@ -442,8 +451,8 @@
     const table = document.querySelector('#tableContainer table');
     if (!table) return;
     const rows = table.querySelectorAll('tbody tr');
-
     const updatedData = [];
+
     rows.forEach(tr => {
       const cells = tr.querySelectorAll('td');
       const rowArr = [];
@@ -472,7 +481,6 @@
 
     syncTableFromDOM();
 
-    // Build text preview
     let txt = "=== UNR_Sektionsförteckning provningsprotokoll Service ===\n\n";
     txt += `Anläggning:       ${headerInfo.anlaggning}\n`;
     txt += `Anläggningsnr:    ${headerInfo.anlaggningsnr}\n`;
@@ -491,13 +499,18 @@
       }
     });
 
+    if (photoBase64) {
+      txt += `\n[Foto är bifogat i PDF-versionen av rapporten.]\n`;
+    }
+
     const out = document.getElementById('reportOutput');
     out.textContent = txt;
     out.style.display = 'block';
   }
 
-  function downloadPdf() {
-    generateReport(); // ensures we have the latest data
+  async function downloadPdf() {
+    // Ensure up-to-date data
+    generateReport();
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -523,7 +536,14 @@
     doc.text(`Datum:            ${headerInfo.datum}`, 40, yPos);
     yPos += 25;
 
-    // Build table for autoTable
+    // If we have a photo, add it
+    if (photoBase64) {
+      // For example, draw it at 40, yPos with 150x100 size (adjust as needed)
+      doc.addImage(photoBase64, "JPEG", 40, yPos, 150, 100);
+      yPos += 110; // move below the image
+    }
+
+    // Table
     doc.autoTable({
       startY: yPos,
       head: [ tableHeaders ],
@@ -535,6 +555,25 @@
 
     doc.save("protokoll.pdf");
   }
+
+  function handlePhoto(e) {
+    const file = e.target.files[0];
+    if (!file) {
+      photoBase64 = null;
+      document.getElementById('photoPreviewWrapper').style.display = 'none';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      photoBase64 = evt.target.result; 
+      // Show preview
+      const preview = document.getElementById('photoPreview');
+      preview.src = photoBase64;
+      document.getElementById('photoPreviewWrapper').style.display = 'block';
+    };
+    reader.readAsDataURL(file); // convert to base64
+  }
 </script>
+
 </body>
 </html>
