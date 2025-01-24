@@ -1,197 +1,208 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Excel → Dynamisk Protokoll</title>
-  <!-- SheetJS from a CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Viewport for responsive design -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Bootstrap 5 CSS from CDN (no SRI) -->
+  <link 
+    rel="stylesheet" 
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    crossorigin="anonymous"
+  />
+
+  <!-- SheetJS for parsing Excel in-browser -->
+  <script 
+    src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+  </script>
+
+  <!-- jsPDF + AutoTable for PDF generation -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">
+  </script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.25/dist/jspdf.plugin.autotable.js">
+  </script>
+
   <style>
-    /* 
-      "Super mega state of the art" styling with a 
-      dark-blue to whitish gradient background and 
-      responsive design. 
-    */
     body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: linear-gradient(120deg, #0b2c4d 0%, #f7f9fc 100%);
-      color: #333;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      background-color: #f1f3f5; /* A subtle grey background */
     }
-    header, main, footer {
-      width: 100%;
-      max-width: 1200px;
-      margin: auto;
-      padding: 20px;
+    .navbar {
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
-    header h1 {
-      color: #fff;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-      margin-bottom: 10px;
-      font-size: 1.8rem;
-    }
-    header {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      margin-top: 20px;
-    }
-
-    label {
-      font-weight: bold;
-      display: inline-block;
-      width: 130px;
-    }
-    input[type="file"] {
-      margin-top: 10px;
-    }
-
-    #headerFields, #tableContainer, #reportSection {
-      background: rgba(255,255,255, 0.9);
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 8px;
-    }
-    #headerFields h3, #tableContainer h3, #reportSection h3 {
-      margin-top: 0;
-      color: #0b2c4d;
-      text-shadow: 0 1px 1px rgba(255,255,255,0.6);
-    }
-    #headerFields div {
-      margin: 5px 0;
-    }
-    #headerFields input[type="text"] {
-      width: 60%;
-      max-width: 300px;
-      padding: 5px;
-      margin-left: 5px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    #tableContainer table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 20px;
-    }
-    #tableContainer th, #tableContainer td {
-      border: 1px solid #ccc;
-      padding: 8px;
-    }
-    #tableContainer th {
-      background: #0b2c4d;
-      color: #fff;
-      text-align: left;
+    /* Sticky table headers */
+    .table thead th {
       position: sticky;
-      top: 0; 
-    }
-    #tableContainer td {
-      background: #fff;
-    }
-    #tableContainer input[type="text"] {
-      width: 95%;
-      box-sizing: border-box;
-      padding: 5px;
-    }
-    /* For checkboxes, let's keep them normal size */
-    #tableContainer input[type="checkbox"] {
-      transform: scale(1.2);
-      margin-left: 6px;
-    }
-
-    /* Buttons */
-    .btn {
-      display: inline-block;
-      background: #0b2c4d;
+      top: 0;
+      background-color: #495057; /* Darker grey */
       color: #fff;
-      border: none;
-      border-radius: 5px;
-      padding: 10px 16px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: background 0.3s;
-      margin-right: 10px;
-      margin-top: 10px;
+      z-index: 2;
     }
-    .btn:hover {
-      background: #094078;
-    }
-
-    #reportOutput {
-      white-space: pre-wrap;
-      border: 1px solid #ccc;
-      padding: 10px;
-      display: none;
+    /* Card-like sections with a slight shadow */
+    .section-card {
       background: #fff;
       border-radius: 6px;
-      max-height: 400px;
-      overflow-y: auto;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
     }
-
-    /* Responsive adjustments */
-    @media (max-width: 600px) {
-      label {
-        width: 100px;
-      }
-      #headerFields input[type="text"] {
-        width: 100%;
-        max-width: 100%;
-      }
-      th, td {
-        font-size: 0.8rem;
-        padding: 5px;
-      }
-      .btn {
-        width: 100%;
-        margin-bottom: 8px;
-      }
+    /* The final text report preview box */
+    #reportOutput {
+      white-space: pre-wrap;
+      border: 1px solid #ddd;
+      background: #fafafa;
+      border-radius: 4px;
+      padding: 1rem;
+      display: none; /* hidden until we generate it */
+      max-height: 350px;
+      overflow-y: auto;
+      margin-top: 1rem;
     }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Excel → Dynamisk Protokoll</h1>
-  <p>Välj Excel‐fil: <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" /></p>
-</header>
+<!-- 1. Dark Navbar -->
+<nav class="navbar navbar-dark bg-dark mb-4">
+  <div class="container">
+    <span class="navbar-brand mb-0 h1">Dynamisk Protokoll</span>
+  </div>
+</nav>
 
-<main>
-  <!-- 1. Header fields container -->
-  <div id="headerFields">
-    <h3>Headerfält (från Excel eller manuellt):</h3>
-    <!-- We'll generate label+input for e.g. 
-         Anläggning, Anläggningsnr, Adress, Behörig ingenjör, etc. -->
+<!-- 2. Main container -->
+<div class="container">
+  <!-- Step 1: File Input -->
+  <div class="section-card">
+    <h4 class="mb-3">1. Välj Excel‐fil</h4>
+    <p class="text-muted mb-2">
+      Filen läses endast lokalt i din webbläsare; ingen data skickas till servern.
+    </p>
+    <input 
+      type="file" 
+      id="excelFile" 
+      accept=".xlsx,.xls,.csv"
+      class="form-control"
+    />
   </div>
 
-  <!-- 2. Dynamic table for rows -->
-  <div id="tableContainer">
-    <h3>Tabell:</h3>
-    <p style="font-size:0.9rem; color:#666;">(Här nedan visas raderna från Excel. Du kan redigera eller lägga till fler.)</p>
-    <!-- We will build the table dynamically here -->
+  <!-- Step 2: Header Fields -->
+  <div id="headerFields" class="section-card">
+    <h4 class="mb-3">2. Headerfält (från Excel eller manuellt)</h4>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Anläggning</label>
+        <input 
+          type="text" 
+          id="inpAnlaggning"
+          class="form-control"
+          placeholder="(Tom)"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Anläggningsnr</label>
+        <input 
+          type="text" 
+          id="inpAnlaggNr"
+          class="form-control"
+          placeholder="(Tom)"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Adress</label>
+        <input 
+          type="text" 
+          id="inpAdress"
+          class="form-control"
+          placeholder="(Tom)"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Behörig ingenjör</label>
+        <input 
+          type="text" 
+          id="inpIngenjor"
+          class="form-control"
+          placeholder="(Tom)"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Ansvarig tekniker</label>
+        <input 
+          type="text" 
+          id="inpTekniker"
+          class="form-control"
+          placeholder="(Tom)"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Datum</label>
+        <input 
+          type="text" 
+          id="inpDatum"
+          class="form-control"
+          placeholder="(Tom)"
+        />
+      </div>
+    </div>
   </div>
 
-  <!-- 3. Section for action buttons and final report -->
-  <div id="reportSection">
-    <button id="addRowBtn" class="btn" style="display:none;">Lägg till ny rad</button>
-    <button id="generateReportBtn" class="btn" style="display:none;">Generera rapport</button>
+  <!-- Step 3: Table Section -->
+  <div class="section-card">
+    <h4 class="mb-3">3. Tabell</h4>
+    <p class="text-muted">
+      Raderna nedan hämtas från Excel (sheet "Service" eller första arket). 
+      Du kan redigera celler och lägga till nya rader.
+    </p>
+    <div class="table-responsive" id="tableContainer"></div>
 
-    <h3>Rapport:</h3>
+    <!-- Action Buttons -->
+    <div class="mt-3">
+      <button id="addRowBtn" class="btn btn-outline-primary me-2" style="display:none;">
+        Lägg till ny rad
+      </button>
+      <button id="generateReportBtn" class="btn btn-primary" style="display:none;">
+        Generera rapport
+      </button>
+      <button id="downloadPdfBtn" class="btn btn-success" style="display:none;">
+        Ladda ner PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 4: Output -->
+  <div class="section-card">
+    <h4 class="mb-3">4. Rapport</h4>
     <div id="reportOutput"></div>
   </div>
-</main>
 
-<footer style="margin-top:auto; text-align:center; padding:10px; font-size:0.8rem; color:#fff;">
-  © 2025 Din Firma
+</div>
+
+<!-- Footer -->
+<footer class="text-center text-muted py-3">
+  <small>© 2025 Din Firma – Allt sker lokalt i webbläsaren</small>
 </footer>
 
+<!-- Bootstrap 5 JS (no SRI) -->
+<script 
+  src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  crossorigin="anonymous">
+</script>
+
 <script>
-  // We treat these as "checkbox columns", i.e. store as boolean
+  /*
+    1) We treat certain columns as checkboxes instead of text.
+    2) We also parse the top ~20 rows for known labels (e.g. "Anläggning:") 
+       to fill the "headerFields".
+  */
+
+  // Columns that become checkboxes
   const checkboxColumns = ["Ritning", "Provad Sign", "Åtgärdad Sign"];
 
-  // We'll keep some recognized label strings in a dictionary.
-  // Key = label (lowercased)  =>  Value = fieldName in headerInfo
+  // Mapping label text -> our headerInfo keys
   const labelMap = {
     "anläggning:":         "anlaggning",
     "anläggningsnr:":      "anlaggningsnr",
@@ -201,7 +212,7 @@
     "datum:":              "datum"
   };
 
-  // Data containers:
+  // We'll store the user data in these
   let headerInfo = {
     anlaggning:       "",
     anlaggningsnr:    "",
@@ -211,168 +222,146 @@
     datum:            ""
   };
   let tableHeaders = [];
-  let tableRows = []; // array of arrays
+  let tableRows = [];
 
-  document.getElementById('excelFile').addEventListener('change', handleFile, false);
+  // Hook up file input
+  document.getElementById('excelFile').addEventListener('change', handleFile);
 
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(evt) {
+    reader.onload = evt => {
       const data = evt.target.result;
+
+      // Parse with XLSX
       const workbook = XLSX.read(data, { type: 'binary' });
 
-      // 1) Find "Service" sheet or default to the first
-      let sheetName = "Service";
-      if (!workbook.SheetNames.includes("Service")) {
-        sheetName = workbook.SheetNames[0];
-      }
+      // "Service" sheet or fallback to the first sheet
+      const sheetName = workbook.SheetNames.includes("Service")
+                        ? "Service"
+                        : workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       if (!worksheet) {
-        alert("Ingen giltig sheet hittades i filen.");
+        alert("Kunde inte hitta ett giltigt kalkylblad i filen.");
         return;
       }
 
-      // Convert entire sheet -> array of arrays
+      // Convert to array-of-arrays
       const sheetData = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1,   // raw arrays
+        header: 1,
         blankrows: false
       });
-
       if (!sheetData || sheetData.length === 0) {
         alert("Inga data hittades i arket.");
         return;
       }
 
-      // 2) Parse top portion for known fields
+      // Extract known fields from top portion
       extractHeaderFields(sheetData);
 
-      // 3) Locate the row that has "UNR." in col 0 to define table headers
-      let headerRowIndex = -1;
-      for (let r = 0; r < sheetData.length; r++) {
-        if (typeof sheetData[r][0] === 'string' && sheetData[r][0].trim().toLowerCase() === "unr.") {
-          headerRowIndex = r;
-          break;
-        }
-      }
-      if (headerRowIndex === -1) {
-        // If not found, fallback to row 0 as "header"
-        headerRowIndex = 0;
-      }
+      // Find row with "UNR." in col 0 => table header
+      let headerRowIndex = sheetData.findIndex(row => {
+        return (
+          typeof row[0] === 'string' &&
+          row[0].trim().toLowerCase() === "unr."
+        );
+      });
+      if (headerRowIndex === -1) headerRowIndex = 0; // fallback
 
-      // 4) Build tableHeaders from that row
-      tableHeaders = (sheetData[headerRowIndex] || []).map(h => h ? h.trim() : "");
+      // The row at headerRowIndex => table headers
+      tableHeaders = (sheetData[headerRowIndex] || []).map(h => (h || "").toString().trim());
 
-      // 5) Build tableRows from subsequent rows, until blank
+      // Subsequent rows => data, until blank row
       tableRows = [];
       for (let r = headerRowIndex + 1; r < sheetData.length; r++) {
         const rowArr = sheetData[r] || [];
-        // Check if this row is effectively empty
         const isEmpty = rowArr.every(cell => !cell || cell.toString().trim() === "");
         if (isEmpty) break;
         tableRows.push(rowArr);
       }
 
-      // 6) Build the UI
-      buildHeaderUI();
-      buildTableUI();
+      // Build UI
+      fillHeaderFields();
+      buildTable();
 
-      // Show the action buttons
-      document.getElementById("addRowBtn").style.display = "inline-block";
-      document.getElementById("generateReportBtn").style.display = "inline-block";
-      document.getElementById("addRowBtn").addEventListener("click", addRow);
-      document.getElementById("generateReportBtn").addEventListener("click", generateReport);
+      // Show action buttons
+      document.getElementById('addRowBtn').style.display = 'inline-block';
+      document.getElementById('generateReportBtn').style.display = 'inline-block';
+      document.getElementById('downloadPdfBtn').style.display = 'inline-block';
+
+      // Hook up events
+      document.getElementById('addRowBtn').onclick = addRow;
+      document.getElementById('generateReportBtn').onclick = generateReport;
+      document.getElementById('downloadPdfBtn').onclick = downloadPdf;
     };
     reader.readAsBinaryString(file);
   }
 
   function extractHeaderFields(sheetData) {
-    // We'll search the first ~20 rows, up to e.g. 10 columns
-    const maxRowsToCheck = Math.min(sheetData.length, 20);
-    const maxColsToCheck = 10; 
-
-    for (let r = 0; r < maxRowsToCheck; r++) {
+    // We look up to 20 rows x 10 cols for known labels
+    const maxRows = Math.min(sheetData.length, 20);
+    const maxCols = 10;
+    for (let r = 0; r < maxRows; r++) {
       const row = sheetData[r] || [];
-      for (let c = 0; c < Math.min(row.length, maxColsToCheck); c++) {
+      for (let c = 0; c < Math.min(row.length, maxCols); c++) {
         const cellVal = (row[c] || "").toString().trim().toLowerCase();
         if (cellVal in labelMap) {
-          // We found a known label. Let's see if we can read the "value" from either:
-          // next column OR next row same column
-          let foundValue = "";
-          // Next column in same row
+          let foundVal = "";
+          // Next column same row
           if (row[c+1]) {
-            foundValue = row[c+1].toString().trim();
-          } 
-          // If that was empty, try next row, same col
-          if (!foundValue && sheetData[r+1] && sheetData[r+1][c]) {
-            foundValue = sheetData[r+1][c].toString().trim();
+            foundVal = row[c+1].toString().trim();
           }
-          // Put it in our headerInfo
-          const fieldName = labelMap[cellVal]; 
-          headerInfo[fieldName] = foundValue;
+          // If still empty, check the next row, same column
+          if (!foundVal && sheetData[r+1] && sheetData[r+1][c]) {
+            foundVal = sheetData[r+1][c].toString().trim();
+          }
+          headerInfo[labelMap[cellVal]] = foundVal;
         }
       }
     }
   }
 
-  function buildHeaderUI() {
-    const container = document.getElementById("headerFields");
-    container.innerHTML = `
-      <h3>Headerfält (från Excel eller manuellt):</h3>
-      <div><label>Anläggning:</label>
-        <input type="text" id="inpAnlaggning" value="${headerInfo.anlaggning}" />
-      </div>
-      <div><label>Anläggningsnr:</label>
-        <input type="text" id="inpAnlaggNr" value="${headerInfo.anlaggningsnr}" />
-      </div>
-      <div><label>Adress:</label>
-        <input type="text" id="inpAdress" value="${headerInfo.adress}" />
-      </div>
-      <div><label>Behörig ingenjör:</label>
-        <input type="text" id="inpIngenjor" value="${headerInfo.behorigIngenjor}" />
-      </div>
-      <div><label>Ansvarig tekniker:</label>
-        <input type="text" id="inpTekniker" value="${headerInfo.ansvarigTekniker}" />
-      </div>
-      <div><label>Datum:</label>
-        <input type="text" id="inpDatum" value="${headerInfo.datum}" />
-      </div>
-    `;
+  function fillHeaderFields() {
+    document.getElementById('inpAnlaggning').value = headerInfo.anlaggning;
+    document.getElementById('inpAnlaggNr').value   = headerInfo.anlaggningsnr;
+    document.getElementById('inpAdress').value     = headerInfo.adress;
+    document.getElementById('inpIngenjor').value   = headerInfo.behorigIngenjor;
+    document.getElementById('inpTekniker').value   = headerInfo.ansvarigTekniker;
+    document.getElementById('inpDatum').value      = headerInfo.datum;
   }
 
-  function buildTableUI() {
-    const container = document.getElementById("tableContainer");
-    container.innerHTML = `
-      <h3>Tabell:</h3>
-      <p style="font-size:0.9rem; color:#666;">(Här nedan visas raderna från Excel. Du kan redigera eller lägga till fler.)</p>
-    `;
+  function buildTable() {
+    const container = document.getElementById('tableContainer');
+    container.innerHTML = ""; // clear old
 
-    if (tableHeaders.length === 0) {
-      container.innerHTML += "<p>Inga tabellrubriker hittades.</p>";
+    if (!tableHeaders.length) {
+      container.innerHTML = '<p class="text-danger">Inga kolumnrubriker hittades.</p>';
       return;
     }
 
-    // Build a table
-    const table = document.createElement("table");
-    // Thead
-    const thead = document.createElement("thead");
-    const thr = document.createElement("tr");
+    // Create a table
+    const table = document.createElement('table');
+    table.className = 'table table-striped table-hover align-middle';
+
+    // THEAD
+    const thead = document.createElement('thead');
+    const thr = document.createElement('tr');
     tableHeaders.forEach(hdr => {
-      const th = document.createElement("th");
+      const th = document.createElement('th');
       th.textContent = hdr;
       thr.appendChild(th);
     });
     thead.appendChild(thr);
     table.appendChild(thead);
 
-    // Tbody
-    const tbody = document.createElement("tbody");
+    // TBODY
+    const tbody = document.createElement('tbody');
     tableRows.forEach(rowArr => {
-      const tr = document.createElement("tr");
+      const tr = document.createElement('tr');
       for (let c = 0; c < tableHeaders.length; c++) {
-        tr.appendChild( createCell(tableHeaders[c], rowArr[c]) );
+        tr.appendChild(createCell(tableHeaders[c], rowArr[c]));
       }
       tbody.appendChild(tr);
     });
@@ -381,81 +370,78 @@
     container.appendChild(table);
   }
 
-  // Create a table cell <td> with either text input or checkbox
-  function createCell(headerName, cellValue) {
-    const td = document.createElement("td");
-    if (checkboxColumns.map(h=>h.toLowerCase()).includes(headerName.toLowerCase())) {
-      // Make a checkbox
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      // let's interpret if cellValue is truthy
-      if (isLikelyChecked(cellValue)) {
-        input.checked = true;
-      }
+  function createCell(header, val) {
+    const td = document.createElement('td');
+    // Check if it's a checkbox column
+    if (checkboxColumns.some(col => col.toLowerCase() === header.toLowerCase())) {
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      // If the existing cell is "X", "true", etc., check it
+      if (isChecked(val)) input.checked = true;
       td.appendChild(input);
     } else {
-      // Normal text input
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = cellValue ? cellValue.toString() : "";
+      // text input
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'form-control form-control-sm';
+      input.value = val ? val.toString() : '';
       td.appendChild(input);
     }
     return td;
   }
 
-  function isLikelyChecked(value) {
-    if (!value) return false;
-    const valStr = value.toString().trim().toLowerCase();
-    return (["1","yes","true","x","checked"].includes(valStr));
+  function isChecked(val) {
+    if (!val) return false;
+    const s = val.toString().trim().toLowerCase();
+    return ['1','true','yes','x','checked'].includes(s);
   }
 
   function addRow() {
-    // First, read the current table in the DOM back to tableRows
+    // sync any current edits
     syncTableFromDOM();
-    // Then create a new blank row
+    // add a blank row
     const blankRow = new Array(tableHeaders.length).fill("");
     tableRows.push(blankRow);
-    // Rebuild table
-    buildTableUI();
+    buildTable();
   }
 
   function syncTableFromDOM() {
-    // We re-collect all rows from the actual table
-    const table = document.querySelector("#tableContainer table");
+    const table = document.querySelector('#tableContainer table');
     if (!table) return;
-    const allRows = table.querySelectorAll("tbody tr");
+    const rows = table.querySelectorAll('tbody tr');
 
-    const updatedRows = [];
-    allRows.forEach(tr => {
-      const cells = tr.querySelectorAll("td");
+    const updatedData = [];
+    rows.forEach(tr => {
+      const cells = tr.querySelectorAll('td');
       const rowArr = [];
-      for (let c = 0; c < cells.length; c++) {
-        const cell = cells[c];
-        const input = cell.querySelector("input");
-        if (input.type === "checkbox") {
-          rowArr.push(input.checked ? "X" : "");
-        } else {
+      cells.forEach(td => {
+        const input = td.querySelector('input');
+        if (input && input.type === 'checkbox') {
+          rowArr.push(input.checked ? 'X' : '');
+        } else if (input && input.type === 'text') {
           rowArr.push(input.value.trim());
+        } else {
+          rowArr.push(''); // fallback
         }
-      }
-      updatedRows.push(rowArr);
+      });
+      updatedData.push(rowArr);
     });
-    tableRows = updatedRows;
+    tableRows = updatedData;
   }
 
   function generateReport() {
-    // 1) Gather the updated header fields
-    headerInfo.anlaggning       = document.getElementById("inpAnlaggning").value.trim();
-    headerInfo.anlaggningsnr    = document.getElementById("inpAnlaggNr").value.trim();
-    headerInfo.adress           = document.getElementById("inpAdress").value.trim();
-    headerInfo.behorigIngenjor  = document.getElementById("inpIngenjor").value.trim();
-    headerInfo.ansvarigTekniker = document.getElementById("inpTekniker").value.trim();
-    headerInfo.datum            = document.getElementById("inpDatum").value.trim();
+    // Update header fields from the user input
+    headerInfo.anlaggning       = document.getElementById('inpAnlaggning').value.trim();
+    headerInfo.anlaggningsnr    = document.getElementById('inpAnlaggNr').value.trim();
+    headerInfo.adress           = document.getElementById('inpAdress').value.trim();
+    headerInfo.behorigIngenjor  = document.getElementById('inpIngenjor').value.trim();
+    headerInfo.ansvarigTekniker = document.getElementById('inpTekniker').value.trim();
+    headerInfo.datum            = document.getElementById('inpDatum').value.trim();
 
-    // 2) Sync the table from DOM in case of unsaved changes
+    // Sync table
     syncTableFromDOM();
 
-    // 3) Build a text summary
+    // Build text
     let txt = "=== UNR_Sektionsförteckning provningsprotokoll Service ===\n\n";
     txt += `Anläggning:       ${headerInfo.anlaggning}\n`;
     txt += `Anläggningsnr:    ${headerInfo.anlaggningsnr}\n`;
@@ -465,23 +451,79 @@
     txt += `Datum:            ${headerInfo.datum}\n`;
     txt += "\n=== Tabellinnehåll ===\n";
 
-    // Label each row’s columns using tableHeaders
-    tableRows.forEach((rowArr, idx) => {
+    tableRows.forEach((row, idx) => {
       txt += `\nRad #${idx + 1}:\n`;
       for (let c = 0; c < tableHeaders.length; c++) {
-        let colName = tableHeaders[c] || `Kolumn ${c+1}`;
-        let val     = rowArr[c] || "";
+        const colName = tableHeaders[c] || `Kolumn ${c+1}`;
+        const val = row[c] || "";
         txt += `  ${colName}: ${val}\n`;
       }
     });
 
-    const outDiv = document.getElementById("reportOutput");
-    outDiv.style.display = "block";
-    outDiv.textContent = txt;
-    // You could also integrate a PDF library or 
-    // automatically open a print dialog, etc.
+    const out = document.getElementById('reportOutput');
+    out.textContent = txt;
+    out.style.display = 'block';
+  }
+
+  async function downloadPdf() {
+    // We do basically the same data collection as generateReport, but format it into a PDF.
+    generateReport(); // to ensure we have the latest data & text
+
+    // Import jsPDF from the UMD bundle
+    const { jsPDF } = window.jspdf;
+
+    // Create a new PDF
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+    // 1) Add a title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("UNR_Sektionsförteckning provningsprotokoll Service", 40, 40);
+
+    // 2) Display the header fields
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+
+    let yPos = 60;
+    doc.text(`Anläggning:       ${headerInfo.anlaggning}`, 40, yPos);
+    yPos += 15;
+    doc.text(`Anläggningsnr:    ${headerInfo.anlaggningsnr}`, 40, yPos);
+    yPos += 15;
+    doc.text(`Adress:           ${headerInfo.adress}`, 40, yPos);
+    yPos += 15;
+    doc.text(`Behörig ingenjör: ${headerInfo.behorigIngenjor}`, 40, yPos);
+    yPos += 15;
+    doc.text(`Ansvarig tekniker:${headerInfo.ansvarigTekniker}`, 40, yPos);
+    yPos += 15;
+    doc.text(`Datum:            ${headerInfo.datum}`, 40, yPos);
+    yPos += 25;
+
+    // 3) Build table data for jsPDF-AutoTable
+    //    We'll convert tableRows into an array-of-arrays, just like we have,
+    //    but we also want the tableHeaders as columns. 
+    const columns = tableHeaders.map(header => ({ header, dataKey: header }));
+    // Convert each row from an array => an object with keys matching our headers
+    const tableData = tableRows.map(rowArr => {
+      const rowObj = {};
+      rowArr.forEach((cellVal, idx) => {
+        const colName = tableHeaders[idx] || `col${idx}`;
+        rowObj[colName] = cellVal;
+      });
+      return rowObj;
+    });
+
+    doc.autoTable({
+      startY: yPos,
+      head: [ tableHeaders ],    // or columns
+      body: tableRows,           // simpler approach if each row is an array
+      margin: { left: 40, right: 40 },
+      styles: { font: 'helvetica', fontSize: 10 },
+      headStyles: { fillColor: [73,80,87] }, // #495057
+    });
+
+    // 4) Save the PDF
+    doc.save("protokoll.pdf");
   }
 </script>
-
 </body>
 </html>
