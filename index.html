@@ -2,9 +2,9 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <title>Excel → Dynamisk Protokoll</title>
+  <title>Excel → Dynamisk Protokoll (Mobile Friendly)</title>
 
-  <!-- Viewport for responsive design -->
+  <!-- Viewport for mobile responsiveness -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Bootstrap 5 CSS from CDN (no SRI) -->
@@ -29,20 +29,13 @@
 
   <style>
     body {
-      background-color: #f1f3f5; /* A subtle grey background */
+      background-color: #f1f3f5; /* Subtle gray */
+      margin: 0; 
+      padding: 0;
     }
     .navbar {
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
-    /* Sticky table headers */
-    .table thead th {
-      position: sticky;
-      top: 0;
-      background-color: #495057; /* Darker grey */
-      color: #fff;
-      z-index: 2;
-    }
-    /* Card-like sections with a slight shadow */
     .section-card {
       background: #fff;
       border-radius: 6px;
@@ -50,7 +43,13 @@
       padding: 1.5rem;
       margin-bottom: 1.5rem;
     }
-    /* The final text report preview box */
+    .table thead th {
+      position: sticky;
+      top: 0;
+      background-color: #495057; /* Darker grey */
+      color: #fff;
+      z-index: 2;
+    }
     #reportOutput {
       white-space: pre-wrap;
       border: 1px solid #ddd;
@@ -62,19 +61,31 @@
       overflow-y: auto;
       margin-top: 1rem;
     }
+
+    /* Make headings, paddings smaller on very small screens */
+    @media (max-width: 576px) {
+      h4 {
+        font-size: 1rem;
+      }
+      .section-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+    }
   </style>
 </head>
 <body>
 
 <!-- 1. Dark Navbar -->
 <nav class="navbar navbar-dark bg-dark mb-4">
-  <div class="container">
+  <div class="container-fluid">
     <span class="navbar-brand mb-0 h1">Dynamisk Protokoll</span>
   </div>
 </nav>
 
-<!-- 2. Main container -->
-<div class="container">
+<!-- 2. Main container fluid for better mobile width usage -->
+<div class="container-fluid px-3 px-md-5">
+
   <!-- Step 1: File Input -->
   <div class="section-card">
     <h4 class="mb-3">1. Välj Excel‐fil</h4>
@@ -93,7 +104,7 @@
   <div id="headerFields" class="section-card">
     <h4 class="mb-3">2. Headerfält (från Excel eller manuellt)</h4>
     <div class="row g-3">
-      <div class="col-md-4">
+      <div class="col-12 col-md-6 col-lg-4">
         <label class="form-label">Anläggning</label>
         <input 
           type="text" 
@@ -102,7 +113,7 @@
           placeholder="(Tom)"
         />
       </div>
-      <div class="col-md-4">
+      <div class="col-12 col-md-6 col-lg-4">
         <label class="form-label">Anläggningsnr</label>
         <input 
           type="text" 
@@ -111,7 +122,7 @@
           placeholder="(Tom)"
         />
       </div>
-      <div class="col-md-4">
+      <div class="col-12 col-md-6 col-lg-4">
         <label class="form-label">Adress</label>
         <input 
           type="text" 
@@ -120,7 +131,7 @@
           placeholder="(Tom)"
         />
       </div>
-      <div class="col-md-4">
+      <div class="col-12 col-md-6 col-lg-4">
         <label class="form-label">Behörig ingenjör</label>
         <input 
           type="text" 
@@ -129,7 +140,7 @@
           placeholder="(Tom)"
         />
       </div>
-      <div class="col-md-4">
+      <div class="col-12 col-md-6 col-lg-4">
         <label class="form-label">Ansvarig tekniker</label>
         <input 
           type="text" 
@@ -138,7 +149,7 @@
           placeholder="(Tom)"
         />
       </div>
-      <div class="col-md-4">
+      <div class="col-12 col-md-6 col-lg-4">
         <label class="form-label">Datum</label>
         <input 
           type="text" 
@@ -157,6 +168,7 @@
       Raderna nedan hämtas från Excel (sheet "Service" eller första arket). 
       Du kan redigera celler och lägga till nya rader.
     </p>
+    <!-- .table-responsive to allow horizontal scroll on mobile -->
     <div class="table-responsive" id="tableContainer"></div>
 
     <!-- Action Buttons -->
@@ -179,14 +191,14 @@
     <div id="reportOutput"></div>
   </div>
 
-</div>
+</div><!-- container-fluid -->
 
 <!-- Footer -->
 <footer class="text-center text-muted py-3">
   <small>© 2025 Din Firma – Allt sker lokalt i webbläsaren</small>
 </footer>
 
-<!-- Bootstrap 5 JS (no SRI) -->
+<!-- Bootstrap 5 JS from CDN (no SRI) -->
 <script 
   src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   crossorigin="anonymous">
@@ -195,14 +207,14 @@
 <script>
   /*
     1) We treat certain columns as checkboxes instead of text.
-    2) We also parse the top ~20 rows for known labels (e.g. "Anläggning:") 
-       to fill the "headerFields".
+    2) We also parse the top ~20 rows for known labels 
+       ("Anläggning:" etc.) for the "headerFields".
   */
 
   // Columns that become checkboxes
   const checkboxColumns = ["Ritning", "Provad Sign", "Åtgärdad Sign"];
 
-  // Mapping label text -> our headerInfo keys
+  // Mapping from label -> header field
   const labelMap = {
     "anläggning:":         "anlaggning",
     "anläggningsnr:":      "anlaggningsnr",
@@ -212,7 +224,7 @@
     "datum:":              "datum"
   };
 
-  // We'll store the user data in these
+  // Data storage
   let headerInfo = {
     anlaggning:       "",
     anlaggningsnr:    "",
@@ -224,7 +236,6 @@
   let tableHeaders = [];
   let tableRows = [];
 
-  // Hook up file input
   document.getElementById('excelFile').addEventListener('change', handleFile);
 
   function handleFile(e) {
@@ -238,7 +249,7 @@
       // Parse with XLSX
       const workbook = XLSX.read(data, { type: 'binary' });
 
-      // "Service" sheet or fallback to the first sheet
+      // "Service" or fallback to first
       const sheetName = workbook.SheetNames.includes("Service")
                         ? "Service"
                         : workbook.SheetNames[0];
@@ -248,7 +259,6 @@
         return;
       }
 
-      // Convert to array-of-arrays
       const sheetData = XLSX.utils.sheet_to_json(worksheet, {
         header: 1,
         blankrows: false
@@ -258,22 +268,19 @@
         return;
       }
 
-      // Extract known fields from top portion
+      // Extract top-labeled fields
       extractHeaderFields(sheetData);
 
-      // Find row with "UNR." in col 0 => table header
+      // Locate row with "UNR." => table header
       let headerRowIndex = sheetData.findIndex(row => {
-        return (
-          typeof row[0] === 'string' &&
-          row[0].trim().toLowerCase() === "unr."
-        );
+        return (typeof row[0] === 'string' && row[0].trim().toLowerCase() === "unr.");
       });
-      if (headerRowIndex === -1) headerRowIndex = 0; // fallback
+      if (headerRowIndex === -1) headerRowIndex = 0;
 
-      // The row at headerRowIndex => table headers
+      // Our table headers
       tableHeaders = (sheetData[headerRowIndex] || []).map(h => (h || "").toString().trim());
 
-      // Subsequent rows => data, until blank row
+      // Rows below => table data
       tableRows = [];
       for (let r = headerRowIndex + 1; r < sheetData.length; r++) {
         const rowArr = sheetData[r] || [];
@@ -300,7 +307,7 @@
   }
 
   function extractHeaderFields(sheetData) {
-    // We look up to 20 rows x 10 cols for known labels
+    // Check first ~20 rows x 10 cols
     const maxRows = Math.min(sheetData.length, 20);
     const maxCols = 10;
     for (let r = 0; r < maxRows; r++) {
@@ -309,11 +316,9 @@
         const cellVal = (row[c] || "").toString().trim().toLowerCase();
         if (cellVal in labelMap) {
           let foundVal = "";
-          // Next column same row
           if (row[c+1]) {
             foundVal = row[c+1].toString().trim();
           }
-          // If still empty, check the next row, same column
           if (!foundVal && sheetData[r+1] && sheetData[r+1][c]) {
             foundVal = sheetData[r+1][c].toString().trim();
           }
@@ -341,7 +346,7 @@
       return;
     }
 
-    // Create a table
+    // Build a table
     const table = document.createElement('table');
     table.className = 'table table-striped table-hover align-middle';
 
@@ -372,15 +377,12 @@
 
   function createCell(header, val) {
     const td = document.createElement('td');
-    // Check if it's a checkbox column
-    if (checkboxColumns.some(col => col.toLowerCase() === header.toLowerCase())) {
+    if (checkboxColumns.some(c => c.toLowerCase() === header.toLowerCase())) {
       const input = document.createElement('input');
       input.type = 'checkbox';
-      // If the existing cell is "X", "true", etc., check it
       if (isChecked(val)) input.checked = true;
       td.appendChild(input);
     } else {
-      // text input
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'form-control form-control-sm';
@@ -397,9 +399,7 @@
   }
 
   function addRow() {
-    // sync any current edits
     syncTableFromDOM();
-    // add a blank row
     const blankRow = new Array(tableHeaders.length).fill("");
     tableRows.push(blankRow);
     buildTable();
@@ -421,7 +421,7 @@
         } else if (input && input.type === 'text') {
           rowArr.push(input.value.trim());
         } else {
-          rowArr.push(''); // fallback
+          rowArr.push('');
         }
       });
       updatedData.push(rowArr);
@@ -430,7 +430,7 @@
   }
 
   function generateReport() {
-    // Update header fields from the user input
+    // Update header fields
     headerInfo.anlaggning       = document.getElementById('inpAnlaggning').value.trim();
     headerInfo.anlaggningsnr    = document.getElementById('inpAnlaggNr').value.trim();
     headerInfo.adress           = document.getElementById('inpAdress').value.trim();
@@ -438,10 +438,9 @@
     headerInfo.ansvarigTekniker = document.getElementById('inpTekniker').value.trim();
     headerInfo.datum            = document.getElementById('inpDatum').value.trim();
 
-    // Sync table
     syncTableFromDOM();
 
-    // Build text
+    // Build text preview
     let txt = "=== UNR_Sektionsförteckning provningsprotokoll Service ===\n\n";
     txt += `Anläggning:       ${headerInfo.anlaggning}\n`;
     txt += `Anläggningsnr:    ${headerInfo.anlaggningsnr}\n`;
@@ -466,21 +465,17 @@
   }
 
   async function downloadPdf() {
-    // We do basically the same data collection as generateReport, but format it into a PDF.
-    generateReport(); // to ensure we have the latest data & text
+    // Ensure we have the latest data
+    generateReport();
 
-    // Import jsPDF from the UMD bundle
     const { jsPDF } = window.jspdf;
-
-    // Create a new PDF
     const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-    // 1) Add a title
+    // Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text("UNR_Sektionsförteckning provningsprotokoll Service", 40, 40);
 
-    // 2) Display the header fields
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
 
@@ -498,32 +493,28 @@
     doc.text(`Datum:            ${headerInfo.datum}`, 40, yPos);
     yPos += 25;
 
-    // 3) Build table data for jsPDF-AutoTable
-    //    We'll convert tableRows into an array-of-arrays, just like we have,
-    //    but we also want the tableHeaders as columns. 
-    const columns = tableHeaders.map(header => ({ header, dataKey: header }));
-    // Convert each row from an array => an object with keys matching our headers
-    const tableData = tableRows.map(rowArr => {
-      const rowObj = {};
-      rowArr.forEach((cellVal, idx) => {
-        const colName = tableHeaders[idx] || `col${idx}`;
-        rowObj[colName] = cellVal;
+    // Build table for jsPDF-AutoTable
+    const columns = tableHeaders.map(h => ({ header: h, dataKey: h }));
+    const tableData = tableRows.map(arr => {
+      const obj = {};
+      arr.forEach((val, idx) => {
+        obj[tableHeaders[idx] || `col${idx}`] = val;
       });
-      return rowObj;
+      return obj;
     });
 
     doc.autoTable({
       startY: yPos,
-      head: [ tableHeaders ],    // or columns
-      body: tableRows,           // simpler approach if each row is an array
+      head: [ tableHeaders ],
+      body: tableRows,
       margin: { left: 40, right: 40 },
       styles: { font: 'helvetica', fontSize: 10 },
-      headStyles: { fillColor: [73,80,87] }, // #495057
+      headStyles: { fillColor: [73,80,87] }, // #495057 dark gray
     });
 
-    // 4) Save the PDF
     doc.save("protokoll.pdf");
   }
 </script>
+
 </body>
 </html>
