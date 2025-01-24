@@ -283,8 +283,8 @@
 
       // "Service" or fallback
       const sheetName = workbook.SheetNames.includes("Service")
-                        ? "Service"
-                        : workbook.SheetNames[0];
+        ? "Service"
+        : workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       if (!worksheet) {
         alert("Kunde inte hitta ett giltigt kalkylblad i filen.");
@@ -307,18 +307,25 @@
       );
       if (headerRowIndex === -1) headerRowIndex = 0;
 
-      tableHeaders = (sheetData[headerRowIndex] || []).map(h => (h || "").toString().trim());
+      tableHeaders = (sheetData[headerRowIndex] || []).map(
+        h => (h || "").toString().trim()
+      );
 
       // Read subsequent rows until blank
       tableRows = [];
       for (let r = headerRowIndex + 1; r < sheetData.length; r++) {
         const rowArr = sheetData[r] || [];
-        if (rowArr.every(cell => !cell || cell.toString().trim() === "")) break;
+        // If the entire row is empty, break
+        if (rowArr.every(cell => !cell || cell.toString().trim() === "")) {
+          break;
+        }
         tableRows.push(rowArr);
       }
 
       // 1) If there's no "Photo" column, add one
-      let photoColIndex = tableHeaders.findIndex(h => h.toLowerCase() === "photo");
+      let photoColIndex = tableHeaders.findIndex(
+        h => h.toLowerCase() === "photo"
+      );
       if (photoColIndex === -1) {
         tableHeaders.push("Photo");
         photoColIndex = tableHeaders.length - 1;
@@ -330,14 +337,14 @@
       buildTable();
 
       // Show action buttons
-      document.getElementById('addRowBtn').style.display = 'inline-block';
-      document.getElementById('generateReportBtn').style.display = 'inline-block';
-      document.getElementById('downloadPdfBtn').style.display = 'inline-block';
+      document.getElementById("addRowBtn").style.display = "inline-block";
+      document.getElementById("generateReportBtn").style.display = "inline-block";
+      document.getElementById("downloadPdfBtn").style.display = "inline-block";
 
       // Hook up
-      document.getElementById('addRowBtn').onclick = addRow;
-      document.getElementById('generateReportBtn').onclick = generateReport;
-      document.getElementById('downloadPdfBtn').onclick = downloadPdf;
+      document.getElementById("addRowBtn").onclick = addRow;
+      document.getElementById("generateReportBtn").onclick = generateReport;
+      document.getElementById("downloadPdfBtn").onclick = downloadPdf;
     };
     reader.readAsBinaryString(file);
   }
@@ -351,11 +358,13 @@
         const cellVal = (row[c] || "").toString().trim().toLowerCase();
         if (cellVal in labelMap) {
           let foundVal = "";
-          if (row[c+1]) {
-            foundVal = row[c+1].toString().trim();
+          // Try next cell in the same row
+          if (row[c + 1]) {
+            foundVal = row[c + 1].toString().trim();
           }
-          if (!foundVal && sheetData[r+1] && sheetData[r+1][c]) {
-            foundVal = sheetData[r+1][c].toString().trim();
+          // Or try the same column in next row
+          if (!foundVal && sheetData[r + 1] && sheetData[r + 1][c]) {
+            foundVal = sheetData[r + 1][c].toString().trim();
           }
           headerInfo[labelMap[cellVal]] = foundVal;
         }
@@ -364,16 +373,16 @@
   }
 
   function fillHeaderFields() {
-    document.getElementById('inpAnlaggning').value = headerInfo.anlaggning;
-    document.getElementById('inpAnlaggNr').value   = headerInfo.anlaggningsnr;
-    document.getElementById('inpAdress').value     = headerInfo.adress;
-    document.getElementById('inpIngenjor').value   = headerInfo.behorigIngenjor;
-    document.getElementById('inpTekniker').value   = headerInfo.ansvarigTekniker;
-    document.getElementById('inpDatum').value      = headerInfo.datum;
+    document.getElementById("inpAnlaggning").value = headerInfo.anlaggning;
+    document.getElementById("inpAnlaggNr").value   = headerInfo.anlaggningsnr;
+    document.getElementById("inpAdress").value     = headerInfo.adress;
+    document.getElementById("inpIngenjor").value   = headerInfo.behorigIngenjor;
+    document.getElementById("inpTekniker").value   = headerInfo.ansvarigTekniker;
+    document.getElementById("inpDatum").value      = headerInfo.datum;
   }
 
   function buildTable() {
-    const container = document.getElementById('tableContainer');
+    const container = document.getElementById("tableContainer");
     container.innerHTML = "";
 
     if (!tableHeaders.length) {
@@ -382,14 +391,14 @@
     }
 
     // Build table
-    const table = document.createElement('table');
-    table.className = 'table table-striped table-hover align-middle';
+    const table = document.createElement("table");
+    table.className = "table table-striped table-hover align-middle";
 
     // THEAD
-    const thead = document.createElement('thead');
-    const thr = document.createElement('tr');
+    const thead = document.createElement("thead");
+    const thr = document.createElement("tr");
     tableHeaders.forEach(hdr => {
-      const th = document.createElement('th');
+      const th = document.createElement("th");
       th.textContent = hdr;
       thr.appendChild(th);
     });
@@ -397,9 +406,9 @@
     table.appendChild(thead);
 
     // TBODY
-    const tbody = document.createElement('tbody');
+    const tbody = document.createElement("tbody");
     tableRows.forEach((rowArr, rowIndex) => {
-      const tr = document.createElement('tr');
+      const tr = document.createElement("tr");
       for (let colIndex = 0; colIndex < tableHeaders.length; colIndex++) {
         const td = createCell(tableHeaders[colIndex], rowArr[colIndex], rowIndex, colIndex);
         tr.appendChild(td);
@@ -412,13 +421,13 @@
   }
 
   function createCell(header, cellVal, rowIndex, colIndex) {
-    const td = document.createElement('td');
-    td.setAttribute('data-label', header);
+    const td = document.createElement("td");
+    td.setAttribute("data-label", header);
 
     // If this column is a known "checkbox" column
     if (checkboxColumns.some(col => col.toLowerCase() === header.toLowerCase())) {
-      const input = document.createElement('input');
-      input.type = 'checkbox';
+      const input = document.createElement("input");
+      input.type = "checkbox";
       if (isChecked(cellVal)) input.checked = true;
       td.appendChild(input);
       return td;
@@ -430,43 +439,45 @@
       // 1) A button to pick a photo
       // 2) A hidden <input type="file" accept="image/*" >
       // 3) A small <img> preview if there's an image
-      const container = document.createElement('div');
+      const container = document.createElement("div");
 
       // Hidden file input
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*';
-      fileInput.style.display = 'none';
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.style.display = "none";
 
       // Button
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'btn btn-sm btn-secondary photo-btn';
-      button.innerText = cellVal ? "Byt Foto" : "+ Lägg till Foto";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-sm btn-secondary photo-btn";
+      button.innerText = cellVal && cellVal.startsWith("data:image")
+        ? "Byt Foto"
+        : "+ Lägg till Foto";
 
       // Preview
-      const preview = document.createElement('img');
-      preview.className = 'photo-preview';
+      const preview = document.createElement("img");
+      preview.className = "photo-preview";
 
       if (cellVal && cellVal.startsWith("data:image")) {
         // Already have base64 in cell
         preview.src = cellVal;
       } else {
-        preview.style.display = 'none';
+        preview.style.display = "none";
       }
 
       // When user clicks button, we open file picker
-      button.addEventListener('click', () => {
+      button.addEventListener("click", () => {
         fileInput.click();
       });
-      fileInput.addEventListener('change', e => {
+      fileInput.addEventListener("change", e => {
         const file = e.target.files[0];
-        if (!file) return; 
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = evt => {
           const base64 = evt.target.result;
           preview.src = base64;
-          preview.style.display = 'block';
+          preview.style.display = "block";
           // Store in tableRows
           tableRows[rowIndex][colIndex] = base64;
         };
@@ -482,10 +493,10 @@
     }
 
     // Otherwise, normal text input
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'form-control form-control-sm';
-    input.value = cellVal ? cellVal.toString() : '';
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "form-control form-control-sm";
+    input.value = cellVal ? cellVal.toString() : "";
 
     td.appendChild(input);
     return td;
@@ -494,36 +505,46 @@
   function isChecked(val) {
     if (!val) return false;
     const s = val.toString().trim().toLowerCase();
-    return ['1','true','yes','x','checked'].includes(s);
+    return ["1","true","yes","x","checked"].includes(s);
   }
 
   function addRow() {
     syncTableFromDOM();
-    // Insert a new blank row 
+    // Insert a new blank row
     const newBlank = new Array(tableHeaders.length).fill("");
     tableRows.push(newBlank);
     buildTable();
   }
 
   function syncTableFromDOM() {
-    const table = document.querySelector('#tableContainer table');
+    const table = document.querySelector("#tableContainer table");
     if (!table) return;
-    const rows = table.querySelectorAll('tbody tr');
+    const rows = table.querySelectorAll("tbody tr");
 
     rows.forEach((tr, rowIndex) => {
-      const cells = tr.querySelectorAll('td');
+      const cells = tr.querySelectorAll("td");
       cells.forEach((td, colIndex) => {
         const header = tableHeaders[colIndex].toLowerCase();
-        if (checkboxColumns.includes(header)) {
-          // check or not
+        // If it's one of the checkbox columns
+        if (checkboxColumns.some(col => col.toLowerCase() === header)) {
           const cb = td.querySelector('input[type="checkbox"]');
-          tableRows[rowIndex][colIndex] = cb.checked ? 'X' : '';
-        } else if (header === 'photo') {
+          if (cb) {
+            tableRows[rowIndex][colIndex] = cb.checked ? "X" : "";
+          }
+        } 
+        // If it's the Photo column
+        else if (header === "photo") {
           // Already stored in base64 when user picks a file
-          // do nothing
-        } else {
+        } 
+        // Otherwise, treat it as a text cell
+        else {
           const textInput = td.querySelector('input[type="text"]');
-          tableRows[rowIndex][colIndex] = textInput.value.trim();
+          if (textInput) {
+            tableRows[rowIndex][colIndex] = textInput.value.trim();
+          } else {
+            // Fallback if no input found
+            tableRows[rowIndex][colIndex] = tableRows[rowIndex][colIndex] || "";
+          }
         }
       });
     });
@@ -531,12 +552,12 @@
 
   function generateReport() {
     // gather updated headers
-    headerInfo.anlaggning       = document.getElementById('inpAnlaggning').value.trim();
-    headerInfo.anlaggningsnr    = document.getElementById('inpAnlaggNr').value.trim();
-    headerInfo.adress           = document.getElementById('inpAdress').value.trim();
-    headerInfo.behorigIngenjor  = document.getElementById('inpIngenjor').value.trim();
-    headerInfo.ansvarigTekniker = document.getElementById('inpTekniker').value.trim();
-    headerInfo.datum            = document.getElementById('inpDatum').value.trim();
+    headerInfo.anlaggning       = document.getElementById("inpAnlaggning").value.trim();
+    headerInfo.anlaggningsnr    = document.getElementById("inpAnlaggNr").value.trim();
+    headerInfo.adress           = document.getElementById("inpAdress").value.trim();
+    headerInfo.behorigIngenjor  = document.getElementById("inpIngenjor").value.trim();
+    headerInfo.ansvarigTekniker = document.getElementById("inpTekniker").value.trim();
+    headerInfo.datum            = document.getElementById("inpDatum").value.trim();
 
     // sync table
     syncTableFromDOM();
@@ -550,12 +571,14 @@
     txt += `Datum:            ${headerInfo.datum}\n`;
     txt += "\n=== Tabellinnehåll ===\n";
 
-    const photoColIndex = tableHeaders.findIndex(h => h.toLowerCase() === "photo");
+    const photoColIndex = tableHeaders.findIndex(
+      h => h.toLowerCase() === "photo"
+    );
 
     tableRows.forEach((rowArr, idx) => {
       txt += `\nRad #${idx + 1}:\n`;
       rowArr.forEach((cellVal, colIndex) => {
-        const colName = tableHeaders[colIndex] || `Kolumn ${colIndex+1}`;
+        const colName = tableHeaders[colIndex] || `Kolumn ${colIndex + 1}`;
         if (colIndex === photoColIndex) {
           if (cellVal && cellVal.startsWith("data:image")) {
             txt += `  ${colName}: [Bild bifogad]\n`;
@@ -568,13 +591,14 @@
       });
     });
 
-    const outDiv = document.getElementById('reportOutput');
+    const outDiv = document.getElementById("reportOutput");
     outDiv.textContent = txt;
-    outDiv.style.display = 'block';
+    outDiv.style.display = "block";
   }
 
   async function downloadPdf() {
-    generateReport(); // ensure up-to-date data
+    // Make sure the table and headers are up to date
+    generateReport();
 
     // Use the plugin-aware version:
     const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
@@ -604,32 +628,30 @@
     // We'll build a simple autoTable for columns except the Photo column
     const photoColIndex = tableHeaders.findIndex(h => h.toLowerCase() === "photo");
     const pdfHeaders = tableHeaders.filter((_, i) => i !== photoColIndex);
-    const pdfBody    = tableRows.map(row => row.filter((_, i) => i !== photoColIndex));
+    const pdfBody = tableRows.map(row => row.filter((_, i) => i !== photoColIndex));
 
     doc.autoTable({
       startY: yPos,
       head: [ pdfHeaders ],
       body: pdfBody,
       margin: { left: 40, right: 40 },
-      styles: { font: 'helvetica', fontSize: 10 },
+      styles: { font: "helvetica", fontSize: 10 },
       headStyles: { fillColor: [73,80,87] }
     });
 
-    // Then let's add photos for each row that has one
-    let finalY = doc.lastAutoTable.finalY + 20; 
-    // We’ll just do them sequentially. 
+    let finalY = doc.lastAutoTable.finalY + 20;
+    // Now add photos for each row that has one
     tableRows.forEach((rowArr, idx) => {
       const base64 = rowArr[photoColIndex];
       if (base64 && base64.startsWith("data:image")) {
         // Insert a small heading
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        doc.text(`Foto för rad #${idx+1}:`, 40, finalY);
+        doc.text(`Foto för rad #${idx + 1}:`, 40, finalY);
         finalY += 10;
-
-        // Add the image
+        // Insert the image (limit to 150 x 100)
         doc.addImage(base64, "JPEG", 40, finalY, 150, 100);
-        finalY += 110; // move down for next photo
+        finalY += 110; 
       }
     });
 
