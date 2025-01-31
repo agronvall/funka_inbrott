@@ -1,662 +1,730 @@
 <!DOCTYPE html>
 <html lang="sv">
-<head>
-  <meta charset="UTF-8" />
-  <title>Excel → Dynamisk Protokoll (Per-Row Photo)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Excel → Dynamisk Protokoll (Per-Row Photo med Kommentar & Förbättringsförslag)</title>
 
-  <!-- Viewport for mobile responsiveness -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Viewport for mobile responsiveness -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Bootstrap 5 (no SRI) -->
-  <link 
-    rel="stylesheet" 
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    crossorigin="anonymous"
-  />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
-  <!-- SheetJS for parsing Excel locally -->
-  <script 
-    src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
-  </script>
-
-  <!-- jsPDF + AutoTable for PDF generation -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">
-  </script>
-  <script
-    src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.25/dist/jspdf.plugin.autotable.js">
-  </script>
-
-  <style>
-    body {
-      background-color: #f1f3f5;
-      margin: 0;
-      padding: 0;
-    }
-    .navbar {
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .section-card {
-      background: #fff;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    #reportOutput {
-      white-space: pre-wrap;
-      border: 1px solid #ddd;
-      background: #fafafa;
-      border-radius: 4px;
-      padding: 1rem;
-      display: none; /* hidden until we generate it */
-      max-height: 350px;
-      overflow-y: auto;
-      margin-top: 1rem;
-    }
-
-    /* Responsive "table -> card" for small screens */
-    .table thead th {
-      background-color: #495057; 
-      color: #fff;
-    }
-    @media (max-width: 575.98px) {
-      .table thead {
-        display: none; 
-      }
-      .table, 
-      .table tbody, 
-      .table tr, 
-      .table td {
-        display: block;
-        width: 100%;
-      }
-      .table tr {
-        margin-bottom: 1rem;
-        border-bottom: 2px solid #dee2e6; 
-      }
-      .table td {
-        border: none !important;
-        position: relative;
-        padding-left: 45%;
-        margin-bottom: 0.75rem;
-        text-align: left;
-      }
-      .table td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 1rem;
-        width: 40%;
-        font-weight: 600;
-        color: #495057;
-        white-space: nowrap;
-      }
-    }
-
-    /* A small preview image in each row for "Photo" */
-    .photo-preview {
-      display: block;
-      margin-top: 4px;
-      max-width: 100px;
-      max-height: 60px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      object-fit: cover;
-    }
-    .photo-btn {
-      margin-top: 4px;
-    }
-  </style>
-</head>
-<body>
-
-<!-- Dark Navbar -->
-<nav class="navbar navbar-dark bg-dark mb-4">
-  <div class="container-fluid">
-    <span class="navbar-brand mb-0 h1">Dynamisk Protokoll (Per-Row Photo)</span>
-  </div>
-</nav>
-
-<div class="container-fluid px-3 px-md-5">
-  
-  <!-- Step 1: Excel File Input -->
-  <div class="section-card">
-    <h4 class="mb-3">1. Välj Excel‐fil</h4>
-    <p class="text-muted">
-      Filen läses endast lokalt i din webbläsare; ingen data skickas till en server.
-    </p>
-    <input 
-      type="file" 
-      id="excelFile" 
-      accept=".xlsx,.xls,.csv"
-      class="form-control"
+    <!-- Bootstrap 5 -->
+    <link 
+      rel="stylesheet" 
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      crossorigin="anonymous"
     />
-  </div>
 
-  <!-- Step 2: Header Fields -->
-  <div id="headerFields" class="section-card">
-    <h4 class="mb-3">2. Headerfält (från Excel eller manuellt)</h4>
-    <div class="row g-3">
-      <div class="col-12 col-md-6 col-lg-4">
-        <label class="form-label">Anläggning</label>
-        <input 
-          type="text" 
-          id="inpAnlaggning"
-          class="form-control"
-          placeholder="(Tom)"
-        />
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-        <label class="form-label">Anläggningsnr</label>
-        <input 
-          type="text" 
-          id="inpAnlaggNr"
-          class="form-control"
-          placeholder="(Tom)"
-        />
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-        <label class="form-label">Adress</label>
-        <input 
-          type="text" 
-          id="inpAdress"
-          class="form-control"
-          placeholder="(Tom)"
-        />
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-        <label class="form-label">Behörig ingenjör</label>
-        <input 
-          type="text" 
-          id="inpIngenjor"
-          class="form-control"
-          placeholder="(Tom)"
-        />
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-        <label class="form-label">Ansvarig tekniker</label>
-        <input 
-          type="text" 
-          id="inpTekniker"
-          class="form-control"
-          placeholder="(Tom)"
-        />
-      </div>
-      <div class="col-12 col-md-6 col-lg-4">
-        <label class="form-label">Datum</label>
-        <input 
-          type="text" 
-          id="inpDatum"
-          class="form-control"
-          placeholder="(Tom)"
-        />
-      </div>
-    </div>
-  </div>
+    <!-- SheetJS for parsing Excel locally -->
+    <script 
+      src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+    </script>
 
-  <!-- Step 3: Dynamic Table w/ Photo Column -->
-  <div class="section-card">
-    <h4 class="mb-3">3. Tabell (med foton per rad)</h4>
-    <p class="text-muted">
-      Raderna nedan hämtas från Excel ("Service" eller första arket). 
-      Varje rad kan ha en egen bild, t.ex. för att visa skada/fel.
-    </p>
-    <div id="tableContainer"></div>
+    <!-- jsPDF + AutoTable for PDF generation -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.25/dist/jspdf.plugin.autotable.js">
+    </script>
 
-    <!-- Action Buttons -->
-    <div class="mt-3">
-      <button id="addRowBtn" class="btn btn-outline-primary me-2" style="display:none;">
-        Lägg till ny rad
-      </button>
-      <button id="generateReportBtn" class="btn btn-primary" style="display:none;">
-        Generera rapport
-      </button>
-      <button id="downloadPdfBtn" class="btn btn-success" style="display:none;">
-        Ladda ner PDF
-      </button>
-    </div>
-  </div>
-
-  <!-- Step 4: Output -->
-  <div class="section-card">
-    <h4 class="mb-3">4. Rapport</h4>
-    <div id="reportOutput"></div>
-  </div>
-
-</div>
-
-<footer class="text-center text-muted py-3">
-  <small>© 2025 Din Firma – Allt sker lokalt i webbläsaren</small>
-</footer>
-
-<!-- Bootstrap 5 JS -->
-<script 
-  src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-  crossorigin="anonymous">
-</script>
-
-<script>
-  /**
-   * 1) If no "Photo" column exists, we add one automatically so each row can 
-   *    store an image in that cell. 
-   * 2) For columns "Ritning", "Provad Sign", "Åtgärdad Sign", we treat them as checkboxes.
-   * 3) The user can upload a photo for each row, we store it in tableRows[rowIndex][colIndex] 
-   *    as a Base64 string, and show a small preview. 
-   * 4) In PDF, we embed each row’s photo below the row text, if present.
-   */
-
-  // Columns that become checkboxes
-  const checkboxColumns = ["Ritning", "Provad Sign", "Åtgärdad Sign"];
-
-  // Map label strings -> headerInfo property
-  const labelMap = {
-    "anläggning:":         "anlaggning",
-    "anläggningsnr:":      "anlaggningsnr",
-    "anläggningsadress:":  "adress",
-    "behörig ingenjör:":   "behorigIngenjor",
-    "ansvarig tekniker:":  "ansvarigTekniker",
-    "datum:":              "datum"
-  };
-
-  // We'll store the user data
-  let headerInfo = {
-    anlaggning:       "",
-    anlaggningsnr:    "",
-    adress:           "",
-    behorigIngenjor:  "",
-    ansvarigTekniker: "",
-    datum:            ""
-  };
-  let tableHeaders = [];
-  let tableRows = []; // array of arrays
-
-  document.getElementById('excelFile').addEventListener('change', handleFile);
-
-  function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = evt => {
-      const data = evt.target.result;
-      const workbook = XLSX.read(data, { type: 'binary' });
-
-      // "Service" or fallback
-      const sheetName = workbook.SheetNames.includes("Service")
-        ? "Service"
-        : workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      if (!worksheet) {
-        alert("Kunde inte hitta ett giltigt kalkylblad i filen.");
-        return;
+    <style>
+      /* Global Styles */
+      body {
+        background: linear-gradient(135deg, #0056b3, #dc3545, #ffffff);
+        background-size: 200% 200%;
+        animation: gradientAnimation 10s ease infinite;
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+        color: #333;
       }
-
-      const sheetData = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1, blankrows: false
-      });
-      if (!sheetData || sheetData.length === 0) {
-        alert("Inga data hittades i arket.");
-        return;
+      @keyframes gradientAnimation {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
       }
-
-      extractHeaderFields(sheetData);
-
-      // Locate row with "UNR." => table header
-      let headerRowIndex = sheetData.findIndex(row =>
-        typeof row[0] === 'string' && row[0].trim().toLowerCase() === "unr."
-      );
-      if (headerRowIndex === -1) headerRowIndex = 0;
-
-      tableHeaders = (sheetData[headerRowIndex] || []).map(
-        h => (h || "").toString().trim()
-      );
-
-      // Read subsequent rows until blank
-      tableRows = [];
-      for (let r = headerRowIndex + 1; r < sheetData.length; r++) {
-        const rowArr = sheetData[r] || [];
-        // If the entire row is empty, break
-        if (rowArr.every(cell => !cell || cell.toString().trim() === "")) {
-          break;
+      .navbar {
+        background: linear-gradient(90deg, #0056b3, #dc3545);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      }
+      .navbar-brand {
+        font-weight: 700;
+        color: #fff;
+      }
+      footer {
+        background-color: #0056b3;
+        color: #fff;
+      }
+      /* Card Styles */
+      .section-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      }
+      h4 {
+        font-weight: 600;
+        border-bottom: 3px solid #0056b3;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      /* Table Styles */
+      .table thead th {
+        background-color: #0056b3; 
+        color: #fff;
+        border: none;
+      }
+      .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #f1f3f5;
+      }
+      /* Responsive "table -> card" for small screens */
+      @media (max-width: 575.98px) {
+        .table thead {
+          display: none; 
         }
-        tableRows.push(rowArr);
-      }
-
-      // 1) If there's no "Photo" column, add one
-      let photoColIndex = tableHeaders.findIndex(
-        h => h.toLowerCase() === "photo"
-      );
-      if (photoColIndex === -1) {
-        tableHeaders.push("Photo");
-        photoColIndex = tableHeaders.length - 1;
-        // For each row, add an empty cell for photo
-        tableRows.forEach(row => row.push(""));
-      }
-
-      fillHeaderFields();
-      buildTable();
-
-      // Show action buttons
-      document.getElementById("addRowBtn").style.display = "inline-block";
-      document.getElementById("generateReportBtn").style.display = "inline-block";
-      document.getElementById("downloadPdfBtn").style.display = "inline-block";
-
-      // Hook up
-      document.getElementById("addRowBtn").onclick = addRow;
-      document.getElementById("generateReportBtn").onclick = generateReport;
-      document.getElementById("downloadPdfBtn").onclick = downloadPdf;
-    };
-    reader.readAsBinaryString(file);
-  }
-
-  function extractHeaderFields(sheetData) {
-    const maxRows = Math.min(sheetData.length, 20);
-    const maxCols = 10;
-    for (let r = 0; r < maxRows; r++) {
-      const row = sheetData[r] || [];
-      for (let c = 0; c < Math.min(row.length, maxCols); c++) {
-        const cellVal = (row[c] || "").toString().trim().toLowerCase();
-        if (cellVal in labelMap) {
-          let foundVal = "";
-          // Try next cell in the same row
-          if (row[c + 1]) {
-            foundVal = row[c + 1].toString().trim();
-          }
-          // Or try the same column in next row
-          if (!foundVal && sheetData[r + 1] && sheetData[r + 1][c]) {
-            foundVal = sheetData[r + 1][c].toString().trim();
-          }
-          headerInfo[labelMap[cellVal]] = foundVal;
+        .table, 
+        .table tbody, 
+        .table tr, 
+        .table td {
+          display: block;
+          width: 100%;
+        }
+        .table tr {
+          margin-bottom: 1rem;
+          border-bottom: 2px solid #dee2e6; 
+        }
+        .table td {
+          border: none !important;
+          position: relative;
+          padding-left: 45%;
+          margin-bottom: 0.75rem;
+          text-align: left;
+        }
+        .table td::before {
+          content: attr(data-label);
+          position: absolute;
+          left: 1rem;
+          width: 40%;
+          font-weight: 600;
+          color: #0056b3;
+          white-space: nowrap;
         }
       }
-    }
-  }
-
-  function fillHeaderFields() {
-    document.getElementById("inpAnlaggning").value = headerInfo.anlaggning;
-    document.getElementById("inpAnlaggNr").value   = headerInfo.anlaggningsnr;
-    document.getElementById("inpAdress").value     = headerInfo.adress;
-    document.getElementById("inpIngenjor").value   = headerInfo.behorigIngenjor;
-    document.getElementById("inpTekniker").value   = headerInfo.ansvarigTekniker;
-    document.getElementById("inpDatum").value      = headerInfo.datum;
-  }
-
-  function buildTable() {
-    const container = document.getElementById("tableContainer");
-    container.innerHTML = "";
-
-    if (!tableHeaders.length) {
-      container.innerHTML = '<p class="text-danger">Inga kolumnrubriker hittades.</p>';
-      return;
-    }
-
-    // Build table
-    const table = document.createElement("table");
-    table.className = "table table-striped table-hover align-middle";
-
-    // THEAD
-    const thead = document.createElement("thead");
-    const thr = document.createElement("tr");
-    tableHeaders.forEach(hdr => {
-      const th = document.createElement("th");
-      th.textContent = hdr;
-      thr.appendChild(th);
-    });
-    thead.appendChild(thr);
-    table.appendChild(thead);
-
-    // TBODY
-    const tbody = document.createElement("tbody");
-    tableRows.forEach((rowArr, rowIndex) => {
-      const tr = document.createElement("tr");
-      for (let colIndex = 0; colIndex < tableHeaders.length; colIndex++) {
-        const td = createCell(tableHeaders[colIndex], rowArr[colIndex], rowIndex, colIndex);
-        tr.appendChild(td);
+      /* Photo and Caption Styles */
+      .photo-preview {
+        display: block;
+        margin-top: 0.5rem;
+        max-width: 100px;
+        max-height: 80px;
+        border: 2px solid #ced4da;
+        border-radius: 6px;
+        object-fit: cover;
       }
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-
-    container.appendChild(table);
-  }
-
-  function createCell(header, cellVal, rowIndex, colIndex) {
-    const td = document.createElement("td");
-    td.setAttribute("data-label", header);
-
-    // If this column is a known "checkbox" column
-    if (checkboxColumns.some(col => col.toLowerCase() === header.toLowerCase())) {
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      if (isChecked(cellVal)) input.checked = true;
-      td.appendChild(input);
-      return td;
-    }
-
-    // If this column is "Photo"
-    if (header.toLowerCase() === "photo") {
-      // We'll create:
-      // 1) A button to pick a photo
-      // 2) A hidden <input type="file" accept="image/*" >
-      // 3) A small <img> preview if there's an image
-      const container = document.createElement("div");
-
-      // Hidden file input
-      const fileInput = document.createElement("input");
-      fileInput.type = "file";
-      fileInput.accept = "image/*";
-      fileInput.style.display = "none";
-
-      // Button
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "btn btn-sm btn-secondary photo-btn";
-      button.innerText = cellVal && cellVal.startsWith("data:image")
-        ? "Byt Foto"
-        : "+ Lägg till Foto";
-
-      // Preview
-      const preview = document.createElement("img");
-      preview.className = "photo-preview";
-
-      if (cellVal && cellVal.startsWith("data:image")) {
-        // Already have base64 in cell
-        preview.src = cellVal;
-      } else {
-        preview.style.display = "none";
+      .photo-btn {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
       }
+      .btn-secondary.photo-btn {
+        background-color: #0056b3 !important;
+        color: #fff !important;
+        border-color: #0056b3 !important;
+      }
+      .btn-secondary.photo-btn:hover {
+        background-color: #004494 !important;
+        border-color: #004494 !important;
+      }
+      .caption-input {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+      }
+      /* Report Output Styles */
+      #reportOutput {
+        white-space: pre-wrap;
+        border: 1px solid #ced4da;
+        background: #f8f9fa;
+        border-radius: 6px;
+        padding: 1rem;
+        display: none;
+        max-height: 350px;
+        overflow-y: auto;
+        margin-top: 1rem;
+      }
+      /* Button Styling */
+      .btn-custom {
+        border-radius: 25px;
+        padding: 0.5rem 1.5rem;
+        transition: all 0.3s ease;
+      }
+      .btn-primary {
+        background-color: #dc3545;
+        border-color: #dc3545;
+      }
+      .btn-primary:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+      }
+      .btn-success {
+        background-color: #0056b3;
+        border-color: #0056b3;
+      }
+      .btn-success:hover {
+        background-color: #004494;
+        border-color: #004494;
+      }
+      .btn-outline-primary {
+        color: #0056b3;
+        border-color: #0056b3;
+      }
+      .btn-outline-primary:hover {
+        background-color: #0056b3;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
 
-      // When user clicks button, we open file picker
-      button.addEventListener("click", () => {
-        fileInput.click();
-      });
-      fileInput.addEventListener("change", e => {
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark mb-4">
+      <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">Dynamisk Protokoll</span>
+      </div>
+    </nav>
+
+    <div class="container px-3 px-md-5">
+
+      <!-- Step 1: Excel File Input -->
+      <div class="section-card">
+        <h4>1. Välj Excel‐fil</h4>
+        <p class="text-muted">Filen läses endast lokalt i din webbläsare; ingen data skickas till en server.</p>
+        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" class="form-control" />
+      </div>
+
+      <!-- Step 2: Header Fields -->
+      <div id="headerFields" class="section-card">
+        <h4>2. Headerfält (från Excel eller manuellt)</h4>
+        <div class="row g-3">
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Anläggning</label>
+            <input type="text" id="inpAnlaggning" class="form-control" placeholder="(Tom)" />
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Anläggningsnr</label>
+            <input type="text" id="inpAnlaggNr" class="form-control" placeholder="(Tom)" />
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Adress</label>
+            <input type="text" id="inpAdress" class="form-control" placeholder="(Tom)" />
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Behörig ingenjör</label>
+            <input type="text" id="inpIngenjor" class="form-control" placeholder="(Tom)" />
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Ansvarig tekniker</label>
+            <input type="text" id="inpTekniker" class="form-control" placeholder="(Tom)" />
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Datum</label>
+            <input type="text" id="inpDatum" class="form-control" placeholder="(Tom)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Dynamic Table w/ Photo Column and Kommentar -->
+      <div class="section-card">
+        <h4>3. Tabell (med foton och kommentarer per rad)</h4>
+        <p class="text-muted">
+          Raderna nedan hämtas från Excel ("Service" eller första arket). Varje rad kan ha en egen bild med en tillhörande kommentar.
+        </p>
+        <div id="tableContainer"></div>
+        <!-- Action Buttons -->
+        <div class="mt-4">
+          <button id="addRowBtn" class="btn btn-outline-primary btn-custom me-2" style="display:none;">Lägg till ny rad</button>
+          <button id="generateReportBtn" class="btn btn-primary btn-custom me-2" style="display:none;">Generera rapport</button>
+          <button id="downloadPdfBtn" class="btn btn-success btn-custom" style="display:none;">Ladda ner PDF</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Förbättringsförslag -->
+      <div class="section-card">
+        <h4>4. Förbättringsförslag</h4>
+        <p class="text-muted">Lägg till eventuella förslag för förbättringar för kunden:</p>
+        <textarea id="inpSuggestions" class="form-control" placeholder="Skriv eventuella förbättringsförslag här..." rows="4"></textarea>
+      </div>
+
+      <!-- Step 5: Rapport -->
+      <div class="section-card">
+        <h4>5. Rapport</h4>
+        <div id="reportOutput"></div>
+      </div>
+
+    </div>
+
+    <footer class="text-center py-3">
+      <small>© 2025 Din Firma – Allt sker lokalt i webbläsaren</small>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script 
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+      crossorigin="anonymous">
+    </script>
+
+    <script>
+      /**
+       * Förbättrad design och layout:
+       * - Modern, ren och levande design med en animerad gradient (blå, röd, vit).
+       * - Förbättrade kort-, knapp- och typografistilar.
+       *
+       * Funktionaliteten:
+       * 1) Vid uppladdning av Excel-filen hämtas data lokalt.
+       * 2) Användaren kan ladda upp bilder per rad med möjlighet att lägga till kommentarer.
+       * 3) Möjlighet att lägga till förslag för förbättringar för kunden.
+       * 4) Rapport och PDF genereras med både tabellinnehåll, bilder med kommentarer samt förbättringsförslag.
+       */
+
+      // Kolumner att visa som checkboxar
+      const checkboxColumns = ["Ritning", "Provad Sign", "Åtgärdad Sign"];
+
+      // Mappa etiketter till headerInfo egenskaper
+      const labelMap = {
+        "anläggning:":         "anlaggning",
+        "anläggningsnr:":      "anlaggningsnr",
+        "anläggningsadress:":  "adress",
+        "behörig ingenjör:":   "behorigIngenjor",
+        "ansvarig tekniker:":  "ansvarigTekniker",
+        "datum:":              "datum"
+      };
+
+      // Lagra header data
+      let headerInfo = {
+        anlaggning:       "",
+        anlaggningsnr:    "",
+        adress:           "",
+        behorigIngenjor:  "",
+        ansvarigTekniker: "",
+        datum:            ""
+      };
+      let tableHeaders = [];
+      let tableRows = []; // Array med rader, varje rad är en array
+
+      document.getElementById('excelFile').addEventListener('change', handleFile);
+
+      function handleFile(e) {
         const file = e.target.files[0];
         if (!file) return;
+
         const reader = new FileReader();
         reader.onload = evt => {
-          const base64 = evt.target.result;
-          preview.src = base64;
-          preview.style.display = "block";
-          // Store in tableRows
-          tableRows[rowIndex][colIndex] = base64;
+          const data = evt.target.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+
+          // Välj "Service" eller första arket
+          const sheetName = workbook.SheetNames.includes("Service")
+            ? "Service"
+            : workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) {
+            alert("Kunde inte hitta ett giltigt kalkylblad i filen.");
+            return;
+          }
+
+          const sheetData = XLSX.utils.sheet_to_json(worksheet, {
+            header: 1, blankrows: false
+          });
+          if (!sheetData || sheetData.length === 0) {
+            alert("Inga data hittades i arket.");
+            return;
+          }
+
+          extractHeaderFields(sheetData);
+
+          // Leta reda på raden med "UNR." för att hämta rubriker
+          let headerRowIndex = sheetData.findIndex(row =>
+            typeof row[0] === 'string' && row[0].trim().toLowerCase() === "unr."
+          );
+          if (headerRowIndex === -1) headerRowIndex = 0;
+
+          tableHeaders = (sheetData[headerRowIndex] || []).map(
+            h => (h || "").toString().trim()
+          );
+
+          // Läs rader tills en tom rad påträffas
+          tableRows = [];
+          for (let r = headerRowIndex + 1; r < sheetData.length; r++) {
+            const rowArr = sheetData[r] || [];
+            if (rowArr.every(cell => !cell || cell.toString().trim() === "")) {
+              break;
+            }
+            tableRows.push(rowArr);
+          }
+
+          // Om "Photo" kolumn saknas, lägg till den
+          let photoColIndex = tableHeaders.findIndex(
+            h => h.toLowerCase() === "photo"
+          );
+          if (photoColIndex === -1) {
+            tableHeaders.push("Photo");
+            photoColIndex = tableHeaders.length - 1;
+            tableRows.forEach(row => row.push(""));
+          }
+
+          fillHeaderFields();
+          buildTable();
+
+          // Visa knappar
+          document.getElementById("addRowBtn").style.display = "inline-block";
+          document.getElementById("generateReportBtn").style.display = "inline-block";
+          document.getElementById("downloadPdfBtn").style.display = "inline-block";
+
+          document.getElementById("addRowBtn").onclick = addRow;
+          document.getElementById("generateReportBtn").onclick = generateReport;
+          document.getElementById("downloadPdfBtn").onclick = downloadPdf;
         };
-        reader.readAsDataURL(file);
-      });
-
-      container.appendChild(button);
-      container.appendChild(fileInput);
-      container.appendChild(preview);
-      td.appendChild(container);
-
-      return td;
-    }
-
-    // Otherwise, normal text input
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "form-control form-control-sm";
-    input.value = cellVal ? cellVal.toString() : "";
-
-    td.appendChild(input);
-    return td;
-  }
-
-  function isChecked(val) {
-    if (!val) return false;
-    const s = val.toString().trim().toLowerCase();
-    return ["1","true","yes","x","checked"].includes(s);
-  }
-
-  function addRow() {
-    syncTableFromDOM();
-    // Insert a new blank row
-    const newBlank = new Array(tableHeaders.length).fill("");
-    tableRows.push(newBlank);
-    buildTable();
-  }
-
-  function syncTableFromDOM() {
-    const table = document.querySelector("#tableContainer table");
-    if (!table) return;
-    const rows = table.querySelectorAll("tbody tr");
-
-    rows.forEach((tr, rowIndex) => {
-      const cells = tr.querySelectorAll("td");
-      cells.forEach((td, colIndex) => {
-        const header = tableHeaders[colIndex].toLowerCase();
-        // If it's one of the checkbox columns
-        if (checkboxColumns.some(col => col.toLowerCase() === header)) {
-          const cb = td.querySelector('input[type="checkbox"]');
-          if (cb) {
-            tableRows[rowIndex][colIndex] = cb.checked ? "X" : "";
-          }
-        } 
-        // If it's the Photo column
-        else if (header === "photo") {
-          // Already stored in base64 when user picks a file
-        } 
-        // Otherwise, treat it as a text cell
-        else {
-          const textInput = td.querySelector('input[type="text"]');
-          if (textInput) {
-            tableRows[rowIndex][colIndex] = textInput.value.trim();
-          } else {
-            // Fallback if no input found
-            tableRows[rowIndex][colIndex] = tableRows[rowIndex][colIndex] || "";
-          }
-        }
-      });
-    });
-  }
-
-  function generateReport() {
-    // gather updated headers
-    headerInfo.anlaggning       = document.getElementById("inpAnlaggning").value.trim();
-    headerInfo.anlaggningsnr    = document.getElementById("inpAnlaggNr").value.trim();
-    headerInfo.adress           = document.getElementById("inpAdress").value.trim();
-    headerInfo.behorigIngenjor  = document.getElementById("inpIngenjor").value.trim();
-    headerInfo.ansvarigTekniker = document.getElementById("inpTekniker").value.trim();
-    headerInfo.datum            = document.getElementById("inpDatum").value.trim();
-
-    // sync table
-    syncTableFromDOM();
-
-    let txt = "=== UNR_Sektionsförteckning provningsprotokoll Service ===\n\n";
-    txt += `Anläggning:       ${headerInfo.anlaggning}\n`;
-    txt += `Anläggningsnr:    ${headerInfo.anlaggningsnr}\n`;
-    txt += `Adress:           ${headerInfo.adress}\n`;
-    txt += `Behörig ingenjör: ${headerInfo.behorigIngenjor}\n`;
-    txt += `Ansvarig tekniker:${headerInfo.ansvarigTekniker}\n`;
-    txt += `Datum:            ${headerInfo.datum}\n`;
-    txt += "\n=== Tabellinnehåll ===\n";
-
-    const photoColIndex = tableHeaders.findIndex(
-      h => h.toLowerCase() === "photo"
-    );
-
-    tableRows.forEach((rowArr, idx) => {
-      txt += `\nRad #${idx + 1}:\n`;
-      rowArr.forEach((cellVal, colIndex) => {
-        const colName = tableHeaders[colIndex] || `Kolumn ${colIndex + 1}`;
-        if (colIndex === photoColIndex) {
-          if (cellVal && cellVal.startsWith("data:image")) {
-            txt += `  ${colName}: [Bild bifogad]\n`;
-          } else {
-            txt += `  ${colName}: (ingen bild)\n`;
-          }
-        } else {
-          txt += `  ${colName}: ${cellVal}\n`;
-        }
-      });
-    });
-
-    const outDiv = document.getElementById("reportOutput");
-    outDiv.textContent = txt;
-    outDiv.style.display = "block";
-  }
-
-  async function downloadPdf() {
-    // Make sure the table and headers are up to date
-    generateReport();
-
-    // Use the plugin-aware version:
-    const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
-
-    // Header
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("UNR_Sektionsförteckning provningsprotokoll Service", 40, 40);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-
-    let yPos = 60;
-    doc.text(`Anläggning:       ${headerInfo.anlaggning}`, 40, yPos);
-    yPos += 15;
-    doc.text(`Anläggningsnr:    ${headerInfo.anlaggningsnr}`, 40, yPos);
-    yPos += 15;
-    doc.text(`Adress:           ${headerInfo.adress}`, 40, yPos);
-    yPos += 15;
-    doc.text(`Behörig ingenjör: ${headerInfo.behorigIngenjor}`, 40, yPos);
-    yPos += 15;
-    doc.text(`Ansvarig tekniker:${headerInfo.ansvarigTekniker}`, 40, yPos);
-    yPos += 15;
-    doc.text(`Datum:            ${headerInfo.datum}`, 40, yPos);
-    yPos += 25;
-
-    // We'll build a simple autoTable for columns except the Photo column
-    const photoColIndex = tableHeaders.findIndex(h => h.toLowerCase() === "photo");
-    const pdfHeaders = tableHeaders.filter((_, i) => i !== photoColIndex);
-    const pdfBody = tableRows.map(row => row.filter((_, i) => i !== photoColIndex));
-
-    doc.autoTable({
-      startY: yPos,
-      head: [ pdfHeaders ],
-      body: pdfBody,
-      margin: { left: 40, right: 40 },
-      styles: { font: "helvetica", fontSize: 10 },
-      headStyles: { fillColor: [73,80,87] }
-    });
-
-    let finalY = doc.lastAutoTable.finalY + 20;
-    // Now add photos for each row that has one
-    tableRows.forEach((rowArr, idx) => {
-      const base64 = rowArr[photoColIndex];
-      if (base64 && base64.startsWith("data:image")) {
-        // Insert a small heading
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Foto för rad #${idx + 1}:`, 40, finalY);
-        finalY += 10;
-        // Insert the image (limit to 150 x 100)
-        doc.addImage(base64, "JPEG", 40, finalY, 150, 100);
-        finalY += 110; 
+        reader.readAsBinaryString(file);
       }
-    });
 
-    doc.save("protokoll.pdf");
-  }
-</script>
-</body>
+      function extractHeaderFields(sheetData) {
+        const maxRows = Math.min(sheetData.length, 20);
+        const maxCols = 10;
+        for (let r = 0; r < maxRows; r++) {
+          const row = sheetData[r] || [];
+          for (let c = 0; c < Math.min(row.length, maxCols); c++) {
+            const cellVal = (row[c] || "").toString().trim().toLowerCase();
+            if (cellVal in labelMap) {
+              let foundVal = "";
+              if (row[c + 1]) {
+                foundVal = row[c + 1].toString().trim();
+              }
+              if (!foundVal && sheetData[r + 1] && sheetData[r + 1][c]) {
+                foundVal = sheetData[r + 1][c].toString().trim();
+              }
+              headerInfo[labelMap[cellVal]] = foundVal;
+            }
+          }
+        }
+      }
+
+      function fillHeaderFields() {
+        document.getElementById("inpAnlaggning").value = headerInfo.anlaggning;
+        document.getElementById("inpAnlaggNr").value   = headerInfo.anlaggningsnr;
+        document.getElementById("inpAdress").value     = headerInfo.adress;
+        document.getElementById("inpIngenjor").value   = headerInfo.behorigIngenjor;
+        document.getElementById("inpTekniker").value   = headerInfo.ansvarigTekniker;
+        document.getElementById("inpDatum").value      = headerInfo.datum;
+      }
+
+      function buildTable() {
+        const container = document.getElementById("tableContainer");
+        container.innerHTML = "";
+
+        if (!tableHeaders.length) {
+          container.innerHTML = '<p class="text-danger">Inga kolumnrubriker hittades.</p>';
+          return;
+        }
+
+        const table = document.createElement("table");
+        table.className = "table table-striped table-hover align-middle";
+
+        // Skapa tabellhuvud
+        const thead = document.createElement("thead");
+        const thr = document.createElement("tr");
+        tableHeaders.forEach(hdr => {
+          const th = document.createElement("th");
+          th.textContent = hdr;
+          thr.appendChild(th);
+        });
+        thead.appendChild(thr);
+        table.appendChild(thead);
+
+        // Skapa tabellkropp
+        const tbody = document.createElement("tbody");
+        tableRows.forEach((rowArr, rowIndex) => {
+          const tr = document.createElement("tr");
+          for (let colIndex = 0; colIndex < tableHeaders.length; colIndex++) {
+            const td = createCell(tableHeaders[colIndex], rowArr[colIndex], rowIndex, colIndex);
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        container.appendChild(table);
+      }
+
+      function createCell(header, cellVal, rowIndex, colIndex) {
+        const td = document.createElement("td");
+        td.setAttribute("data-label", header);
+
+        // Hantera checkbox kolumner
+        if (checkboxColumns.some(col => col.toLowerCase() === header.toLowerCase())) {
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          if (isChecked(cellVal)) input.checked = true;
+          input.addEventListener("change", () => {
+            tableRows[rowIndex][colIndex] = input.checked ? "X" : "";
+          });
+          td.appendChild(input);
+          return td;
+        }
+
+        // Hantera Photo-kolumn med bild och kommentar
+        if (header.toLowerCase() === "photo") {
+          const container = document.createElement("div");
+
+          // Dold file input
+          const fileInput = document.createElement("input");
+          fileInput.type = "file";
+          fileInput.accept = "image/*";
+          fileInput.style.display = "none";
+
+          // Sätt aktuell bild och kommentar
+          let currentImage = "";
+          let currentCaption = "";
+          if (cellVal && typeof cellVal === "object" && cellVal.image && cellVal.image.startsWith("data:image")) {
+            currentImage = cellVal.image;
+            currentCaption = cellVal.caption || "";
+          } else if (typeof cellVal === "string" && cellVal.startsWith("data:image")) {
+            currentImage = cellVal;
+          }
+
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "btn btn-sm btn-secondary photo-btn";
+          button.innerText = currentImage ? "Byt Foto" : "+ Lägg till Foto";
+          button.addEventListener("click", () => {
+            fileInput.click();
+          });
+
+          const preview = document.createElement("img");
+          preview.className = "photo-preview";
+          if (currentImage) {
+            preview.src = currentImage;
+          } else {
+            preview.style.display = "none";
+          }
+
+          const captionInput = document.createElement("input");
+          captionInput.type = "text";
+          captionInput.placeholder = "Skriv en kommentar...";
+          captionInput.className = "form-control form-control-sm caption-input";
+          captionInput.value = currentCaption;
+          captionInput.addEventListener("input", () => {
+            let cellData = tableRows[rowIndex][colIndex];
+            if (typeof cellData !== "object") {
+              cellData = { image: currentImage, caption: captionInput.value.trim() };
+            } else {
+              cellData.caption = captionInput.value.trim();
+            }
+            tableRows[rowIndex][colIndex] = cellData;
+          });
+
+          fileInput.addEventListener("change", e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = evt => {
+              const base64 = evt.target.result;
+              currentImage = base64;
+              preview.src = base64;
+              preview.style.display = "block";
+              button.innerText = "Byt Foto";
+              tableRows[rowIndex][colIndex] = { image: base64, caption: captionInput.value.trim() };
+            };
+            reader.readAsDataURL(file);
+          });
+
+          container.appendChild(button);
+          container.appendChild(fileInput);
+          container.appendChild(preview);
+          container.appendChild(captionInput);
+          td.appendChild(container);
+          return td;
+        }
+
+        // Standard textcell
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "form-control form-control-sm";
+        input.value = cellVal ? cellVal.toString() : "";
+        input.addEventListener("input", () => {
+          tableRows[rowIndex][colIndex] = input.value.trim();
+        });
+        td.appendChild(input);
+        return td;
+      }
+
+      function isChecked(val) {
+        if (!val) return false;
+        const s = val.toString().trim().toLowerCase();
+        return ["1", "true", "yes", "x", "checked"].includes(s);
+      }
+
+      function addRow() {
+        syncTableFromDOM();
+        const newBlank = new Array(tableHeaders.length).fill("");
+        tableRows.push(newBlank);
+        buildTable();
+      }
+
+      function syncTableFromDOM() {
+        const table = document.querySelector("#tableContainer table");
+        if (!table) return;
+        const rows = table.querySelectorAll("tbody tr");
+        rows.forEach((tr, rowIndex) => {
+          const cells = tr.querySelectorAll("td");
+          cells.forEach((td, colIndex) => {
+            const header = tableHeaders[colIndex].toLowerCase();
+            if (checkboxColumns.some(col => col.toLowerCase() === header)) {
+              const cb = td.querySelector('input[type="checkbox"]');
+              if (cb) {
+                tableRows[rowIndex][colIndex] = cb.checked ? "X" : "";
+              }
+            } else if (header === "photo") {
+              // Hanteras i egna eventlyssnare
+            } else {
+              const textInput = td.querySelector('input[type="text"]');
+              if (textInput) {
+                tableRows[rowIndex][colIndex] = textInput.value.trim();
+              }
+            }
+          });
+        });
+      }
+
+      function generateReport() {
+        headerInfo.anlaggning       = document.getElementById("inpAnlaggning").value.trim();
+        headerInfo.anlaggningsnr    = document.getElementById("inpAnlaggNr").value.trim();
+        headerInfo.adress           = document.getElementById("inpAdress").value.trim();
+        headerInfo.behorigIngenjor  = document.getElementById("inpIngenjor").value.trim();
+        headerInfo.ansvarigTekniker = document.getElementById("inpTekniker").value.trim();
+        headerInfo.datum            = document.getElementById("inpDatum").value.trim();
+
+        syncTableFromDOM();
+
+        let txt = "=== UNR_Sektionsförteckning provningsprotokoll Service ===\n\n";
+        txt += `Anläggning:       ${headerInfo.anlaggning}\n`;
+        txt += `Anläggningsnr:    ${headerInfo.anlaggningsnr}\n`;
+        txt += `Adress:           ${headerInfo.adress}\n`;
+        txt += `Behörig ingenjör: ${headerInfo.behorigIngenjor}\n`;
+        txt += `Ansvarig tekniker:${headerInfo.ansvarigTekniker}\n`;
+        txt += `Datum:            ${headerInfo.datum}\n`;
+        txt += "\n=== Tabellinnehåll ===\n";
+
+        const photoColIndex = tableHeaders.findIndex(
+          h => h.toLowerCase() === "photo"
+        );
+
+        tableRows.forEach((rowArr, idx) => {
+          txt += `\nRad #${idx + 1}:\n`;
+          rowArr.forEach((cellVal, colIndex) => {
+            const colName = tableHeaders[colIndex] || `Kolumn ${colIndex + 1}`;
+            if (colIndex === photoColIndex) {
+              if (cellVal && typeof cellVal === "object" && cellVal.image && cellVal.image.startsWith("data:image")) {
+                txt += `  ${colName}: [Bild bifogad] Kommentar: ${cellVal.caption || "(ingen)"}\n`;
+              } else if (typeof cellVal === "string" && cellVal.startsWith("data:image")) {
+                txt += `  ${colName}: [Bild bifogad]\n`;
+              } else {
+                txt += `  ${colName}: (ingen bild)\n`;
+              }
+            } else {
+              txt += `  ${colName}: ${cellVal}\n`;
+            }
+          });
+        });
+
+        const suggestions = document.getElementById("inpSuggestions").value.trim();
+        if (suggestions) {
+          txt += "\n=== Förbättringsförslag ===\n";
+          txt += suggestions + "\n";
+        }
+
+        const outDiv = document.getElementById("reportOutput");
+        outDiv.textContent = txt;
+        outDiv.style.display = "block";
+      }
+
+      async function downloadPdf() {
+        generateReport();
+
+        const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+
+        // Rubrik
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("UNR_Sektionsförteckning provningsprotokoll Service", 40, 40);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(12);
+
+        let yPos = 60;
+        doc.text(`Anläggning:       ${headerInfo.anlaggning}`, 40, yPos);
+        yPos += 15;
+        doc.text(`Anläggningsnr:    ${headerInfo.anlaggningsnr}`, 40, yPos);
+        yPos += 15;
+        doc.text(`Adress:           ${headerInfo.adress}`, 40, yPos);
+        yPos += 15;
+        doc.text(`Behörig ingenjör: ${headerInfo.behorigIngenjor}`, 40, yPos);
+        yPos += 15;
+        doc.text(`Ansvarig tekniker:${headerInfo.ansvarigTekniker}`, 40, yPos);
+        yPos += 15;
+        doc.text(`Datum:            ${headerInfo.datum}`, 40, yPos);
+        yPos += 25;
+
+        // Skapa autoTable för övriga kolumner (utanför Photo)
+        const photoColIndex = tableHeaders.findIndex(h => h.toLowerCase() === "photo");
+        const pdfHeaders = tableHeaders.filter((_, i) => i !== photoColIndex);
+        const pdfBody = tableRows.map(row => row.filter((_, i) => i !== photoColIndex));
+
+        doc.autoTable({
+          startY: yPos,
+          head: [ pdfHeaders ],
+          body: pdfBody,
+          margin: { left: 40, right: 40 },
+          styles: { font: "helvetica", fontSize: 10 },
+          headStyles: { fillColor: [0,86,179] }
+        });
+
+        let finalY = doc.lastAutoTable.finalY + 20;
+
+        // Lägg till förbättringsförslag om det finns
+        const suggestions = document.getElementById("inpSuggestions").value.trim();
+        if (suggestions) {
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text("Förbättringsförslag:", 40, finalY);
+          finalY += 15;
+          doc.setFont("helvetica", "normal");
+          let suggestionsLines = doc.splitTextToSize(suggestions, 500);
+          doc.text(suggestionsLines, 40, finalY);
+          finalY += 15 * suggestionsLines.length;
+          finalY += 10;
+        }
+
+        // Lägg till bilder med kommentarer
+        tableRows.forEach((rowArr, idx) => {
+          let photoData = rowArr[photoColIndex];
+          if (photoData && typeof photoData === "object" && photoData.image && photoData.image.startsWith("data:image")) {
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Foto för rad #${idx + 1}:`, 40, finalY);
+            finalY += 10;
+            doc.addImage(photoData.image, "JPEG", 40, finalY, 150, 100);
+            finalY += 110;
+            if (photoData.caption && photoData.caption.trim() !== "") {
+              doc.setFontSize(10);
+              doc.setFont("helvetica", "normal");
+              doc.text(`Kommentar: ${photoData.caption}`, 40, finalY);
+              finalY += 15;
+            }
+          }
+        });
+
+        doc.save("protokoll.pdf");
+      }
+    </script>
+  </body>
 </html>
